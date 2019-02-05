@@ -5,6 +5,19 @@ import std.container.rbtree;
 import std.container.util : make;
 import std.format;
 
+/// TODO make generic
+ChainInterval[] query(RedBlackTree!ChainBlock tree, ChainInterval q)
+{
+	ChainInterval[] ret;
+	
+	if (tree.length == 0) return ret;
+
+
+
+
+	return ret;	
+}
+
 /// Represents a query or target interval
 /// zero based, half-open coordinates
 /// If conver to class, make implement Interface Interval (need: start, end, overlaps, opCmp)
@@ -13,7 +26,7 @@ struct ChainInterval
 	string contig;
 	uint start;
 	uint end;
-
+	
 	/** Detect overlap between this interval and other given interval
 
 	Only defined if intervals on same contig
@@ -49,6 +62,7 @@ struct ChainInterval
 		else return false;
 	}
 
+	/// Overload <, <=, >, >= for ChainInterval/ChainInterval
 	int opCmp(ref const ChainInterval other) const
 	{
 		// Intervals from different contigs are incomparable
@@ -60,6 +74,13 @@ struct ChainInterval
 		else if(this.start == other.start && this.end > other.end) return 1;
 		else return 0;	// would be reached in case of equality (although we do not expect)
 	}
+	/// Overload <, <=, >, >= for ChainInterval/int 
+	int opCmp(const int x) const
+	{
+		if (this.start < x) return -1;
+		else if (this.start > x) return 1;
+		else return 0;
+	}
 
 	string toString() const
 	{
@@ -70,11 +91,13 @@ struct ChainInterval
 /// Represents a mapping from ChainInterval -> ChainInterval
 /// Beacuse this is what's stored in RBTree nodes,
 /// should also impoement Interface Interval, but delegate to member 'query'
+/// (tree sorted by query, not target)
 struct ChainBlock
 {
 	ChainInterval query;
 	ChainInterval target;
-
+	int start;
+	
 	/// Overlap defined in terms of query interval
 	bool overlaps(ref const ChainBlock other) const
 	{
@@ -169,4 +192,7 @@ unittest
 	foreach(e; rbt) {
 		writeln(e);
 	}
+
+
+	auto x = make!RedBlackTree(1,2,3,10,11,12);
 }

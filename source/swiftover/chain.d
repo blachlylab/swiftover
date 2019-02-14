@@ -52,6 +52,15 @@ struct ChainLink
                     this.qcid, this.qstart, this.qend,
                     this.tcid, this.tstart, this.tend);
 	}
+
+    invariant
+    {
+        // TODO: should we really allow start == end?
+        assert(this.qstart <= this.qend);
+        assert(this.tstart <= this.tend);
+        assert((this.qend - this.qstart) == (this.tend - this.tstart),
+            "ChainLink intervals differ in length");
+    }
 }
 unittest
 {

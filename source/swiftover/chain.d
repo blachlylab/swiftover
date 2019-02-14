@@ -53,7 +53,22 @@ struct ChainLink
                     this.tcid, this.tstart, this.tend);
 	}
 }
+unittest
+{
+    const auto c1 = ChainLink(0, 1_000, 2_000, 0, 10_000, 11_000);
+    const auto c2 = ChainLink(0, 1_000, 3_000, 0, 10_000, 12_000);
+    const auto c3 = ChainLink(0, 1_500, 2_500, 0, 10_500, 11_500);
 
+    assert(c1 < c2, "ChainLink opCmp problem");
+    assert(c2 < c3, "ChainLink opCmp problem");
+    assert(c3 < 1501, "ChainLink opCmp problem");
+    assert(c1 > 999, "ChainLink opCmp problem");
+
+    // opCmp should check only qstart, qend
+    assert(c1 == ChainLink(999, 1_000, 2_000), "ChainLink opCmp problem");
+    // or start, when comparing with an integer
+    //assert(c1 == 1_000, "ChainLink opEqual problem");
+}
 
 /// The Chain type represents a UCSC chain object, including all
 /// the fields from the header line and each block of mappings

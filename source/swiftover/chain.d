@@ -29,6 +29,7 @@ struct ChainLink
 	int opCmp(ref const ChainLink other) const
 	{
 		// Intervals from different contigs are incomparable
+        // TODO: or are they???
 		assert(this.qcid == other.qcid);	// formerly return 0, but implies equality, leads to "duplicate insert" bug when using std.container.rbtree
 		
 		if (this.start < other.start) return -1;
@@ -72,11 +73,6 @@ unittest
     assert(c2 < c3, "ChainLink opCmp problem");
     assert(c3 < 1501, "ChainLink opCmp problem");
     assert(c1 > 999, "ChainLink opCmp problem");
-
-    // opCmp should check only qstart, qend
-    assert(c1 == ChainLink(999, 1_000, 2_000), "ChainLink opCmp problem");
-    // or start, when comparing with an integer
-    //assert(c1 == 1_000, "ChainLink opEqual problem");
 }
 
 /// The Chain type represents a UCSC chain object, including all
@@ -109,7 +105,7 @@ if(isInputRange!R)
     static auto dfields = appender!(int);       /// alignment data fields; statically allocated to save GC allocations
 
     /// Construct Chain object from a header and range of lines comprising the links or blocks
-	this(string chainHeader, R lines)
+	this(const string chainHeader, R lines)
 	{
         // Example chain header line: 
 		// chain 20851231461 chr1 249250621 + 10000 249240621 chr1 248956422 + 10000 248946422 2
@@ -174,6 +170,34 @@ if(isInputRange!R)
             this.links ~= link;
         }
 	}
+    unittest
+    {
+        const string h = "chain 267340 chrX 155270560 + 49204606 49241588 chrX 156040895 + 49338635 49547634 916";
+        const char[] data = r"75      964     965
+128     1047    1049
+686     37      36
+63      12      13
+279     51      51
+204     73      73
+73      25      28
+145     38      39
+100     55      55
+270     2613    2636
+148     242     242
+1292    11570   183551
+304     3114    3099
+55      43      43
+51      5975    6008
+104     3239    3227
+40      182     182
+1334    2239    2239
+112";
+
+        auto c = Chain(h, data);
+
+        assert(c.links.length == 19,
+            "Failure parsing chain data blocks into ChainLinks");
+    }
 
 	string toString() const
 	{

@@ -1,8 +1,10 @@
 module swiftover.chain;
 
+import std.algorithm : map;
 import std.array : appender;
 import std.algorithm : splitter;
-import std.ascii : isWhite;
+import std.ascii : isWhite, newline;
+import std.conv : to;
 import std.format;
 
 /// Represents a mapping from ChainInterval -> ChainInterval
@@ -80,54 +82,53 @@ unittest
 /// for that chain.
 /// 
 /// Specifications: https://genome.ucsc.edu/goldenpath/help/chain.html
-struct Chain(R)
-if(isInputRange!R)
+struct Chain
 {
 	long score;         /// Chain score
 
 	string targetName;
-	long targetSize;
+	int targetSize;
 	char targetStrand;	/// +,-
-	long targetStart;
-	long targetEnd;
+	int targetStart;
+	int targetEnd;
 	
 	string queryName;
-	long querySize;
+	int querySize;
 	char queryStrand;
-	long queryStart;
-	long queryEnd;
+	int queryStart;
+	int queryEnd;
 
 	int id;             /// chain id
 
 	ChainLink*[] links;  /// query and target intervals in 1:1 bijective relationship
 
-    static auto hfields = appender!(char[][]);  /// header fields; statically allocated to save GC allocations
-    static auto dfields = appender!(int);       /// alignment data fields; statically allocated to save GC allocations
+    static auto hfields = appender!(string[]);  /// header fields; statically allocated to save GC allocations
+    static auto dfields = appender!(int[]);       /// alignment data fields; statically allocated to save GC allocations
 
     /// Construct Chain object from a header and range of lines comprising the links or blocks
-	this(const string chainHeader, R lines)
+	this(const string chainHeader, string lines)
 	{
         // Example chain header line: 
 		// chain 20851231461 chr1 249250621 + 10000 249240621 chr1 248956422 + 10000 248946422 2
 		// assumes no errors in chain line
-        this.fields.clear;
-        this.fields.put(chainHeader.splitter(" "));
-        assert(this.fields[0] == "chain");
-        this.score = this.fields[1].to!long;
+        this.hfields.clear;
+        this.hfields.put(chainHeader.splitter(" "));
+        assert(this.hfields.data[0] == "chain");
+        this.score = this.hfields.data[1].to!long;
         
-        this.targetName = this.fields[2];
-        this.targetSize = this.fields[3].to!long;
-        this.targetStrand = this.fields[4][0];
-        this.targetStart = this.fields[5].to!long;
-        this.targetEnd = this.fields[6].to!long;
+        this.targetName = this.hfields.data[2].idup;
+        this.targetSize = this.hfields.data[3].to!int;
+        this.targetStrand = this.hfields.data[4][0];
+        this.targetStart = this.hfields.data[5].to!int;
+        this.targetEnd = this.hfields.data[6].to!int;
 
-        this.queryName = this.fields[7];
-        this.querySize = this.fields[8].to!long;
-        this.queryStrand = this.fields[9][0];
-        this.queryStart = this.fields[10].to!long;
-        this.queryEnd = this.fields[11].to!long;
+        this.queryName = this.hfields.data[7].idup;
+        this.querySize = this.hfields.data[8].to!int;
+        this.queryStrand = this.hfields.data[9][0];
+        this.queryStart = this.hfields.data[10].to!int;
+        this.queryEnd = this.hfields.data[11].to!int;
 
-        this.id = this.fields[12].to!int;
+        this.id = this.hfields.data[12].to!int;
 
 
         /*  Alignment data lines:
@@ -137,13 +138,16 @@ if(isInputRange!R)
             dq -- the difference between the end of this block and the beginning of the next block (query sequence)
             NOTE: The last line of the alignment section contains only one number: the ungapped alignment size of the last block.
         */
-        int tFrom = this.targetStart;   // accum current coordinate, target
-        int qFrom = this.queryStart;    // accum current coordinate, query
+        auto tFrom = this.targetStart;   // accum current coordinate, target
+        auto qFrom = this.queryStart;    // accum current coordinate, query
         bool done;
-        foreach(line; lines)
+        foreach(line; lines.splitter(newline))
         {
             this.dfields.clear();
-            this.dfields.put(line.splitter!isWhite().map(x => x.to!int));   // TODO: benchmark splitter() 
+            this.dfields.put(line.splitter.map!(x => x.to!int));   // TODO: benchmark splitter() 
+            
+            immutable int size = this.dfields.data[0];
+            // note that dt and dq are not present in the final row of a chain
 
             // set up ChainLink from alignement data line
             ChainLink* link = new ChainLink;
@@ -152,15 +156,19 @@ if(isInputRange!R)
             link.qstart = qFrom;
             link.qend = qFrom + size;
 
-            link.tid = 101; // TODO, get int id for string this.targetName
+            link.tcid = 101; // TODO, get int id for string this.targetName
             link.tstart = tFrom;
             link.tend = tFrom + size;
 
-            if(this.dfields.length == 1)    // last block in chain
+            if(this.dfields.data.length == 1)    // last block in chain
                 done = true;
-            else if(this.dfields.length == 3)
+            else if(this.dfields.data.length == 3)
             {
                 assert(done is false, "Malformed alignment data blocks");
+
+                immutable int dt = this.dfields.data[1];
+                immutable int dq = this.dfields.data[2];
+
                 tFrom += (size + dt);
                 qFrom += (size + dq);
             }
@@ -170,34 +178,6 @@ if(isInputRange!R)
             this.links ~= link;
         }
 	}
-    unittest
-    {
-        const string h = "chain 267340 chrX 155270560 + 49204606 49241588 chrX 156040895 + 49338635 49547634 916";
-        const char[] data = r"75      964     965
-128     1047    1049
-686     37      36
-63      12      13
-279     51      51
-204     73      73
-73      25      28
-145     38      39
-100     55      55
-270     2613    2636
-148     242     242
-1292    11570   183551
-304     3114    3099
-55      43      43
-51      5975    6008
-104     3239    3227
-40      182     182
-1334    2239    2239
-112";
-
-        auto c = Chain(h, data);
-
-        assert(c.links.length == 19,
-            "Failure parsing chain data blocks into ChainLinks");
-    }
 
 	string toString() const
 	{
@@ -218,6 +198,38 @@ if(isInputRange!R)
         assert(this.queryStart < this.queryEnd);
     }
 }
+unittest
+{
+    const string h = "chain 267340 chrX 155270560 + 49204606 49241588 chrX 156040895 + 49338635 49547634 916";
+    string data = r"75      964     965
+128     1047    1049
+686     37      36
+63      12      13
+279     51      51
+204     73      73
+73      25      28
+145     38      39
+100     55      55
+270     2613    2636
+148     242     242
+1292    11570   183551
+304     3114    3099
+55      43      43
+51      5975    6008
+104     3239    3227
+40      182     182
+1334    2239    2239
+112";
+
+    auto c = Chain(h, data);
+
+    assert(c.links.length == 19,
+        "Failure parsing chain data blocks into ChainLinks");
+    
+    import std.stdio : writefln;
+    writefln("Chain: %s", c);
+}
+
 
 /// Representation of UCSC-format liftover chain file, which contains multiple alignment/liftover chains
 struct ChainFile

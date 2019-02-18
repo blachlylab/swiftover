@@ -1,13 +1,15 @@
 module swiftover.chain;
 
 import std.algorithm : map;
-import std.array : appender;
+import std.array : appender, array;
 import std.algorithm : splitter;
 import std.ascii : isWhite, newline;
 import std.conv : to;
-import std.file;
+import std.file : exists, FileException;
 import std.format;
-import std.range : isInputRange;
+import std.range;
+import std.stdio;
+
 
 /// Represents a mapping from ChainInterval -> ChainInterval
 /// Previously, this contained two "ChainInterval" structs (one target, one query)
@@ -104,18 +106,18 @@ struct Chain
 
 	ChainLink*[] links;  /// query and target intervals in 1:1 bijective relationship
 
-    static auto hfields = appender!(string[]);  /// header fields; statically allocated to save GC allocations
+    static auto hfields = appender!(char[][]);  /// header fields; statically allocated to save GC allocations
     static auto dfields = appender!(int[]);       /// alignment data fields; statically allocated to save GC allocations
 
     /// Construct Chain object from a header and range of lines comprising the links or blocks
-	this(R)(const string chainHeader, R lines)
+	this(R)(R lines)
     if (isInputRange!R)
 	{
         // Example chain header line: 
 		// chain 20851231461 chr1 249250621 + 10000 249240621 chr1 248956422 + 10000 248946422 2
 		// assumes no errors in chain line
         this.hfields.clear;
-        this.hfields.put(chainHeader.splitter(" "));
+        this.hfields.put(lines.front().dup.splitter(" "));
         assert(this.hfields.data[0] == "chain");
         this.score = this.hfields.data[1].to!long;
         
@@ -132,7 +134,7 @@ struct Chain
         this.queryEnd = this.hfields.data[11].to!int;
 
         this.id = this.hfields.data[12].to!int;
-
+        
 
         /*  Alignment data lines:
             size dt dq
@@ -144,7 +146,7 @@ struct Chain
         auto tFrom = this.targetStart;   // accum current coordinate, target
         auto qFrom = this.queryStart;    // accum current coordinate, query
         bool done;
-        foreach(line; lines)
+        foreach(line; lines.dropOne())
         {
             this.dfields.clear();
             this.dfields.put(line.splitter.map!(x => x.to!int));   // TODO: benchmark splitter() 
@@ -203,8 +205,8 @@ struct Chain
 }
 unittest
 {
-    const string h = "chain 267340 chrX 155270560 + 49204606 49241588 chrX 156040895 + 49338635 49547634 916";
-    string data = r"75      964     965
+    string data = r"chain 267340 chrX 155270560 + 49204606 49241588 chrX 156040895 + 49338635 49547634 916
+75      964     965
 128     1047    1049
 686     37      36
 63      12      13
@@ -224,7 +226,7 @@ unittest
 1334    2239    2239
 112";
 
-    auto c = Chain(h, data.splitter(newline));  // TODO, need to change this out for cross-platform \n\r \n \r splitter
+    auto c = Chain(data.splitter(newline));  // TODO, need to change this out for cross-platform \n\r \n \r splitter
 
     assert(c.links.length == 19,
         "Failure parsing chain data blocks into ChainLinks");
@@ -244,9 +246,33 @@ struct ChainFile
     /// Parse UCSC-format chain file into liftover trees (one tree per source/query contig)
     this(string fn)
     {
-        assert(0, "WIP resume here");
+        import std.stdio : writefln;
+
         if (!fn.exists)
-            throw new FileException;
+            throw new FileException("File does not exist");
+
+        auto chainArray = fn.File.byLineCopy().array();
+
+        size_t chainStart;
+        size_t chainEnd;
+        foreach(i, line; enumerate(chainArray))
+        {
+            if (line.length > 5 && line[0..6] == "chain")
+            {
+                chainStart = i;
+                chainEnd = i - 1;
+                if (chainStart > 0) // first iteration does not mark the end of a chain
+                {
+                    auto c = Chain(chainArray[chainStart..chainEnd]);
+                    stderr.writefln("Chain: %s", c);
+                }
+            }
+        }
+        // Don't forget the last chain
+        auto c = Chain(chainArray[chainStart .. $]);
+        stderr.writefln("Final Chain: %s", c);
+
+        assert(0, "WIP resume here, need to separate into separate trees per contig");
 
     }
 }

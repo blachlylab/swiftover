@@ -148,6 +148,10 @@ struct Chain
         bool done;
         foreach(line; lines.dropOne())
         {
+            if (line.length == 0) continue; // blank lines end a chain block
+
+            //stderr.writeln("DEBUG: ", line);
+
             this.dfields.clear();
             this.dfields.put(line.splitter.map!(x => x.to!int));   // TODO: benchmark splitter() 
             
@@ -253,19 +257,20 @@ struct ChainFile
 
         auto chainArray = fn.File.byLineCopy().array();
 
-        size_t chainStart;
-        size_t chainEnd;
+        long chainStart;
+        long chainEnd;
         foreach(i, line; enumerate(chainArray))
         {
-            if (line.length > 5 && line[0..6] == "chain")
+            if (line.length > 5 && line[0..5] == "chain")
             {
-                chainStart = i;
                 chainEnd = i - 1;
-                if (chainStart > 0) // first iteration does not mark the end of a chain
+
+                if (chainEnd > 0) // first iteration does not mark the end of a chain
                 {
                     auto c = Chain(chainArray[chainStart..chainEnd]);
                     stderr.writefln("Chain: %s", c);
                 }
+                chainStart = i;
             }
         }
         // Don't forget the last chain

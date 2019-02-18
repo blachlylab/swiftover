@@ -5,12 +5,16 @@ import std.array : appender, join;
 import std.file;
 import std.stdio;
 
+import swiftover.chain;
+
 /// BED is zero-based, half-open
 /// https://genome.ucsc.edu/FAQ/FAQformat.html#format1
 /// 
 /// https://software.broadinstitute.org/software/igv/BED
 void liftBED(string chainfile, string infile, string outfile)
 {
+    auto cf = ChainFile(chainfile);
+    
     File fi;
     File fo;
 

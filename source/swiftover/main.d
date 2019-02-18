@@ -5,6 +5,9 @@ import std.getopt;
 import std.path;
 import std.stdio;
 
+import swiftover.bed;
+import swiftover.vcf;
+
 int main(string[] args)
 {
     string chainfile;
@@ -27,6 +30,8 @@ int main(string[] args)
     }
     catch (GetOptException e)
     {
+        // TODO WTF does this not work?
+        usage.helpWanted = true;
         defaultGetoptPrinter("swift liftover", usage.options);
         return 1;
     }

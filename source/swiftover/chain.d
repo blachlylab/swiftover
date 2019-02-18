@@ -10,6 +10,7 @@ import std.format;
 import std.range;
 import std.stdio;
 
+import intervaltree.splaytree;
 
 /// Represents a mapping from ChainInterval -> ChainInterval
 /// Previously, this contained two "ChainInterval" structs (one target, one query)
@@ -19,24 +20,25 @@ import std.stdio;
 /// (tree sorted by query, not target)
 struct ChainLink
 {
+    // target and query intervals in 1:1 bijective relationship
+    int tcid;   /// Target (reference) contig id
+    int tstart; /// Target (reference) start
+    int tend;   /// Target (reference) end
+
     int qcid;   /// Query contig id
     int qstart; /// Query start
     int qend;   /// Query end
 
-    int tcid;   /// Target contig id
-    int tstart; /// Target start
-    int tend;   /// Target end
-
     // To work with the interval tree, and overlap functions
-    alias start = qstart;
-    alias end = qend;
+    alias start = tstart;
+    alias end = tend;
 
     /// Overload <, <=, >, >= for ChainLink/ChainLin; compare query
 	int opCmp(ref const ChainLink other) const
 	{
 		// Intervals from different contigs are incomparable
         // TODO: or are they???
-		assert(this.qcid == other.qcid);	// formerly return 0, but implies equality, leads to "duplicate insert" bug when using std.container.rbtree
+		assert(this.tcid == other.tcid);	// formerly return 0, but implies equality, leads to "duplicate insert" bug when using std.container.rbtree
 		
 		if (this.start < other.start) return -1;
 		else if(this.start > other.start) return 1;
@@ -63,8 +65,8 @@ struct ChainLink
     invariant
     {
         // TODO: should we really allow start == end?
-        assert(this.qstart <= this.qend);
         assert(this.tstart <= this.tend);
+        assert(this.qstart <= this.qend);
         assert((this.qend - this.qstart) == (this.tend - this.tstart),
             "ChainLink intervals differ in length");
     }
@@ -258,6 +260,7 @@ struct ChainFile
     string sourceBuild; /// original assembly, e.g. hg19 in an hg19->GRCh38 liftover
     alias queryBuild = sourceBuild;
     string destBuild; /// destination assembly, e.g. GRCh38 in an hg19->GRCh38 liftover
+
 
     /// Parse UCSC-format chain file into liftover trees (one tree per source/query contig)
     this(string fn)

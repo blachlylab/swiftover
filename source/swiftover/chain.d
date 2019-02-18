@@ -5,7 +5,9 @@ import std.array : appender;
 import std.algorithm : splitter;
 import std.ascii : isWhite, newline;
 import std.conv : to;
+import std.file;
 import std.format;
+import std.range : isInputRange;
 
 /// Represents a mapping from ChainInterval -> ChainInterval
 /// Previously, this contained two "ChainInterval" structs (one target, one query)
@@ -106,7 +108,8 @@ struct Chain
     static auto dfields = appender!(int[]);       /// alignment data fields; statically allocated to save GC allocations
 
     /// Construct Chain object from a header and range of lines comprising the links or blocks
-	this(const string chainHeader, string lines)
+	this(R)(const string chainHeader, R lines)
+    if (isInputRange!R)
 	{
         // Example chain header line: 
 		// chain 20851231461 chr1 249250621 + 10000 249240621 chr1 248956422 + 10000 248946422 2
@@ -141,7 +144,7 @@ struct Chain
         auto tFrom = this.targetStart;   // accum current coordinate, target
         auto qFrom = this.queryStart;    // accum current coordinate, query
         bool done;
-        foreach(line; lines.splitter(newline))
+        foreach(line; lines)
         {
             this.dfields.clear();
             this.dfields.put(line.splitter.map!(x => x.to!int));   // TODO: benchmark splitter() 
@@ -221,7 +224,7 @@ unittest
 1334    2239    2239
 112";
 
-    auto c = Chain(h, data);
+    auto c = Chain(h, data.splitter(newline));  // TODO, need to change this out for cross-platform \n\r \n \r splitter
 
     assert(c.links.length == 19,
         "Failure parsing chain data blocks into ChainLinks");
@@ -242,5 +245,8 @@ struct ChainFile
     this(string fn)
     {
         assert(0, "WIP resume here");
+        if (!fn.exists)
+            throw new FileException;
+
     }
 }

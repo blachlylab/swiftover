@@ -58,8 +58,8 @@ struct ChainLink
 	string toString() const
 	{
 		return format("(contig#%d):%d-%d → (contig#%d):%d-%d",
-                    this.qcid, this.qstart, this.qend,
-                    this.tcid, this.tstart, this.tend);
+                    this.tcid, this.tstart, this.tend,
+                    this.qcid, this.qstart, this.qend);
 	}
 
     invariant
@@ -102,15 +102,15 @@ struct Chain
 {
 	long score;         /// Chain score
 
-	string targetName;
-	int targetSize;
+	string targetName;  /// source build contig
+	int targetSize;     /// source build contig length
 	char targetStrand;	/// +,-
 	int targetStart;
 	int targetEnd;
 	
-	string queryName;
-	int querySize;
-	char queryStrand;
+	string queryName;   /// destination build contig
+	int querySize;      /// destination build contig length
+	char queryStrand;   /// +,-
 	int queryStart;
 	int queryEnd;
 
@@ -261,8 +261,9 @@ struct ChainFile
     alias queryBuild = sourceBuild;
     string destBuild; /// destination assembly, e.g. GRCh38 in an hg19->GRCh38 liftover
 
+    private IntervalSplayTree!(ChainLink)*[string] chainsByContig; /// AA of contig:string -> Interval Tree
 
-    /// Parse UCSC-format chain file into liftover trees (one tree per source/query contig)
+    /// Parse UCSC-format chain file into liftover trees (one tree per source contig)
     this(string fn)
     {
         import std.stdio : writefln;
@@ -284,6 +285,14 @@ struct ChainFile
                 {
                     auto c = Chain(chainArray[chainStart..chainEnd]);
                     stderr.writefln("Chain: %s", c);
+                    
+                    // Does this contig exist in the map?
+                    auto tree = this.chainsByContig.require(c.targetName, new IntervalSplayTree!ChainLink);
+                    
+                    // Insert all intervals from the chain into the tree
+                    foreach(link; c.links)
+                        (*tree).insert(*link);
+
                 }
                 chainStart = i;
             }
@@ -292,7 +301,17 @@ struct ChainFile
         auto c = Chain(chainArray[chainStart .. $]);
         stderr.writefln("Final Chain: %s", c);
 
-        assert(0, "WIP resume here, need to separate into separate trees per contig");
+        // Does this contig exist in the map?
+        auto tree = this.chainsByContig.require(c.targetName, new IntervalSplayTree!ChainLink);
 
+        // Insert all intervals from the chain into the tree
+        foreach(link; c.links)
+            (*tree).insert(*link);
+
+
+        // END ChainFile ctor
+        foreach(contig; this.chainsByContig.byKey) {
+            writeln(contig);
+        }
     }
 }

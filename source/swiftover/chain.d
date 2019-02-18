@@ -86,6 +86,16 @@ unittest
 /// for that chain.
 /// 
 /// Specifications: https://genome.ucsc.edu/goldenpath/help/chain.html
+///
+/// BEWARE:
+/// Note that in the above documentation, UCSC calls the starting build
+/// "target"* or "reference", and the liftover-to-build "query".
+///
+/// This is the opposite of what I would like, given that in our application
+/// we will query an interval in the reference to obtain an interval in
+/// a targeted destination genome build.
+///
+/// *actually they don't say "target", but tName, tSize, tStrand, etc.
 struct Chain
 {
 	long score;         /// Chain score
@@ -190,8 +200,10 @@ struct Chain
 
 	string toString() const
 	{
-		return format("%s:%d-%d → %s:%d-%d :: %d links", this.queryName, this.queryStart, this.queryEnd,
-			this.targetName, this.targetStart, this.targetEnd, this.links.length);
+		return format("%s:%d-%d → %s:%d-%d :: %d links", 
+			this.targetName, this.targetStart, this.targetEnd,
+            this.queryName, this.queryStart, this.queryEnd,
+            this.links.length);
 	}
 
     invariant
@@ -245,7 +257,7 @@ struct ChainFile
 {
     string sourceBuild; /// original assembly, e.g. hg19 in an hg19->GRCh38 liftover
     alias queryBuild = sourceBuild;
-    string targetBuild; /// target assembly, e.g. GRCh38 in an hg19->GRCh38 liftover
+    string destBuild; /// destination assembly, e.g. GRCh38 in an hg19->GRCh38 liftover
 
     /// Parse UCSC-format chain file into liftover trees (one tree per source/query contig)
     this(string fn)

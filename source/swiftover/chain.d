@@ -271,6 +271,7 @@ struct ChainFile
         if (!fn.exists)
             throw new FileException("File does not exist");
 
+        // TODO: speed this pig up
         auto chainArray = fn.File.byLineCopy().array();
 
         long chainStart;
@@ -313,5 +314,13 @@ struct ChainFile
         foreach(contig; this.chainsByContig.byKey) {
             writeln(contig);
         }
+    }
+
+    /// Lift coordinates from one build to another
+    void lift(ref string contig, ref int start, ref int end)
+    {
+        contig = "chr99";
+        start = 123;
+        end = 456;
     }
 }

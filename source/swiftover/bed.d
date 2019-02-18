@@ -2,6 +2,7 @@ module swiftover.bed;
 
 import std.algorithm : splitter;
 import std.array : appender, join;
+import std.conv;
 import std.file;
 import std.stdio;
 
@@ -37,9 +38,15 @@ void liftBED(string chainfile, string infile, string outfile)
         fields.clear();
         fields.put( line.splitter() );
 
-        fields.data[0] = "chr99".dup;
-        fields.data[1] = "999".dup;
-        fields.data[2] = "1001".dup;
+        string contig = fields.data[0].idup;
+        int start = fields.data[1].to!int;
+        int end = fields.data[2].to!int;
+
+        cf.lift(contig, start, end);
+
+        fields.data[0] = contig.dup;
+        fields.data[1] = start.text.dup;        // TODO benchmark vs .toChars.array
+        fields.data[2] = end.text.dup;          // TODO benchmark vs .toChars.array
 
         fo.writef("%s\n", fields.data.join("\t"));
 

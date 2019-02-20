@@ -345,8 +345,10 @@ struct ChainFile
         }
         else if (o.length == 1)
         {
+            debug hts_log_trace(__FUNCTION__, format("Basic interval: %s | overlap interval: %s | delta %d", i,
+                o.front().interval, o.front().interval.delta));
             // TODO: contig
-            contig = "chr999";
+            contig = "chrONE";
 
             // TODO can we make this prettier?
             const auto isect = intersect(i, o.front().interval);
@@ -357,6 +359,8 @@ struct ChainFile
         }
         else
         {
+            // TODO: contig
+            contig = "chr999";
             auto isect = o.map!(x => intersect(i, x.interval));
 
         }

@@ -8,6 +8,8 @@ import std.stdio;
 import swiftover.bed;
 import swiftover.vcf;
 
+import dhtslib.htslib.hts_log;
+
 int main(string[] args)
 {
     string chainfile;
@@ -42,6 +44,9 @@ int main(string[] args)
             usage.options);
         return 1;
     }
+
+    // TODO: make cmd line flag -d, -dd, etc.
+    hts_set_log_level(htsLogLevel.HTS_LOG_TRACE);
 
     if (!chainfile.exists)
         throw new FileException("Chainfile does not exist");

@@ -1,0 +1,10 @@
+{
+	"name": "swiftover",
+	"description": "Swift coordinate liftover",
+	"authors": ["James S Blachly, MD"],
+	"homepage": "http://github.com/blachlylab/swiftover",
+	"license": "GPL-3.0",
+	"dependencies": {
+		"dhtslib": { "path": "../dhtslib" }
+	}
+}

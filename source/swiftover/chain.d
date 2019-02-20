@@ -12,6 +12,8 @@ import std.stdio;
 
 import intervaltree.splaytree;
 
+import dhtslib.htslib.hts_log;
+
 /// Represents a mapping from ChainInterval -> ChainInterval
 /// Previously, this contained two "ChainInterval" structs (one target, one query)
 /// But they are merged for efficiency
@@ -162,8 +164,6 @@ struct Chain
         {
             if (line.length == 0) continue; // blank lines end a chain block
 
-            //stderr.writeln("DEBUG: ", line);
-
             this.dfields.clear();
             this.dfields.put(line.splitter.map!(x => x.to!int));   // TODO: benchmark splitter() 
             
@@ -173,13 +173,13 @@ struct Chain
             // set up ChainLink from alignement data line
             ChainLink* link = new ChainLink;
 
-            link.qcid = 99; // TODO, get int id for string this.queryName
-            link.qstart = qFrom;
-            link.qend = qFrom + size;
-
-            link.tcid = 101; // TODO, get int id for string this.targetName
+            link.tcid = 99; // TODO, get int id for string this.targetName
             link.tstart = tFrom;
             link.tend = tFrom + size;
+
+            link.qcid = 101; // TODO, get int id for string this.queryName
+            link.qstart = qFrom;
+            link.qend = qFrom + size;
 
             if(this.dfields.data.length == 1)    // last block in chain
                 done = true;
@@ -249,8 +249,8 @@ unittest
     assert(c.links.length == 19,
         "Failure parsing chain data blocks into ChainLinks");
     
-    import std.stdio : writefln;
-    writefln("Chain: %s", c);
+    hts_set_log_level(htsLogLevel.HTS_LOG_TRACE);
+    hts_log_trace(__FUNCTION__, format("Chain: %s", c));
 }
 
 
@@ -266,8 +266,6 @@ struct ChainFile
     /// Parse UCSC-format chain file into liftover trees (one tree per source contig)
     this(string fn)
     {
-        import std.stdio : writefln;
-
         if (!fn.exists)
             throw new FileException("File does not exist");
 
@@ -285,7 +283,7 @@ struct ChainFile
                 if (chainEnd > 0) // first iteration does not mark the end of a chain
                 {
                     auto c = Chain(chainArray[chainStart..chainEnd]);
-                    stderr.writefln("Chain: %s", c);
+                    hts_log_trace(__FUNCTION__, format("Chain: %s", c));
                     
                     // Does this contig exist in the map?
                     auto tree = this.chainsByContig.require(c.targetName, new IntervalSplayTree!ChainLink);
@@ -300,7 +298,7 @@ struct ChainFile
         }
         // Don't forget the last chain
         auto c = Chain(chainArray[chainStart .. $]);
-        stderr.writefln("Final Chain: %s", c);
+        hts_log_trace(__FUNCTION__, format("Final Chain: %s", c));
 
         // Does this contig exist in the map?
         auto tree = this.chainsByContig.require(c.targetName, new IntervalSplayTree!ChainLink);
@@ -312,13 +310,23 @@ struct ChainFile
 
         // END ChainFile ctor
         foreach(contig; this.chainsByContig.byKey) {
-            writeln(contig);
+            hts_log_trace(__FUNCTION__, format("Contig: %s", contig));
         }
     }
 
     /// Lift coordinates from one build to another
     void lift(ref string contig, ref int start, ref int end)
     {
+        auto i = BasicInterval(start, end);
+        auto o = this.chainsByContig[contig].findOverlapsWith(i);
+
+        // marked as debug because in hot code path
+        debug {
+            foreach(x; o) {
+                hts_log_trace(__FUNCTION__, format("%s", *x));
+            }
+        }
+        
         contig = "chr99";
         start = 123;
         end = 456;

@@ -31,9 +31,11 @@ NOTE that in half-open coordinates [start, end)
  i1.end == i2.start => Adjacent, but NO overlap
 */
 pragma(inline, true)
-bool overlaps(IntervalType)(IntervalType int1, IntervalType int2)
-if (__traits(hasMember, IntervalType, "start") &&
-    __traits(hasMember, IntervalType, "end"))
+bool overlaps(IntervalType1, IntervalType2)(IntervalType1 int1, IntervalType2 int2)
+if (__traits(hasMember, IntervalType1, "start") &&
+    __traits(hasMember, IntervalType1, "end") &&
+    __traits(hasMember, IntervalType2, "start") &&
+    __traits(hasMember, IntervalType2, "end"))
 {
     // int1   =====    =======
     // int2 =======  =======
@@ -492,7 +494,9 @@ struct IntervalSplayTree(IntervalType)
     ///     this could eliminate many function calls (unless they were optimized out or tree did not require descent)
     ///     and also could eliminate copying qinterval repeatedly
     /// TODO: benchmark return Node[]
-    Node*[] findOverlapsWith(IntervalType qinterval, Node *startAt = null)
+    ///
+    /// NOTES: Originally the function signature was (IntervalType qinterva, Node *startAt = null)
+    Node*[] findOverlapsWith(T)(T qinterval, Node *startAt = null)
     {
         Node*[] ret;
         Node * current;
@@ -545,10 +549,11 @@ struct IntervalSplayTree(IntervalType)
             
             // If the interval starts less than curent interval,
             // search left subtree
-            if (interval < current.interval)
+            if (interval < current.interval) {
                 if (current.left !is null)
                     stack ~= current.left;
                 continue;
+            }
 
             // if the current node is a match, return result; then check left and right subtrees
             if (interval == current.interval) 

@@ -13,6 +13,9 @@
 
 # Executables
 *.exe
+/liftOver
+/swiftover
+/swiftover-test-library
 
 # DUB
 .dub

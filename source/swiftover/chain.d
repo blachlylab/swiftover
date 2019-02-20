@@ -1,6 +1,7 @@
 module swiftover.chain;
 
 import std.algorithm : map;
+import std.algorithm.comparison : max, min;
 import std.array : appender, array;
 import std.algorithm : splitter;
 import std.ascii : isWhite, newline;
@@ -34,6 +35,8 @@ struct ChainLink
     // To work with the interval tree, and overlap functions
     alias start = tstart;
     alias end = tend;
+
+    int delta;  /// fixed offset from tstart->qstart  == qstart - tstart (same for end as intervals must be same len)
 
     /// Overload <, <=, >, >= for ChainLink/ChainLin; compare query
 	int opCmp(ref const ChainLink other) const
@@ -71,13 +74,14 @@ struct ChainLink
         assert(this.qstart <= this.qend);
         assert((this.qend - this.qstart) == (this.tend - this.tstart),
             "ChainLink intervals differ in length");
+        assert(this.delta == (this.qstart - this.tstart));
     }
 }
 unittest
 {
-    const auto c1 = ChainLink(0, 1_000, 2_000, 0, 10_000, 11_000);
-    const auto c2 = ChainLink(0, 1_000, 3_000, 0, 10_000, 12_000);
-    const auto c3 = ChainLink(0, 1_500, 2_500, 0, 10_500, 11_500);
+    const auto c1 = ChainLink(0, 1_000, 2_000, 0, 10_000, 11_000, 9000);
+    const auto c2 = ChainLink(0, 1_000, 3_000, 0, 10_000, 12_000, 9000);
+    const auto c3 = ChainLink(0, 1_500, 2_500, 0, 10_500, 11_500, 9000);
 
     assert(c1 < c2, "ChainLink opCmp problem");
     assert(c2 < c3, "ChainLink opCmp problem");
@@ -181,6 +185,8 @@ struct Chain
             link.qstart = qFrom;
             link.qend = qFrom + size;
 
+            link.delta = qFrom - tFrom;
+
             if(this.dfields.data.length == 1)    // last block in chain
                 done = true;
             else if(this.dfields.data.length == 3)
@@ -257,6 +263,7 @@ unittest
 /// Representation of UCSC-format liftover chain file, which contains multiple alignment/liftover chains
 struct ChainFile
 {
+    // TODO use build names
     string sourceBuild; /// original assembly, e.g. hg19 in an hg19->GRCh38 liftover
     alias queryBuild = sourceBuild;
     string destBuild; /// destination assembly, e.g. GRCh38 in an hg19->GRCh38 liftover
@@ -283,7 +290,7 @@ struct ChainFile
                 if (chainEnd > 0) // first iteration does not mark the end of a chain
                 {
                     auto c = Chain(chainArray[chainStart..chainEnd]);
-                    hts_log_trace(__FUNCTION__, format("Chain: %s", c));
+                    debug hts_log_trace(__FUNCTION__, format("Chain: %s", c));
                     
                     // Does this contig exist in the map?
                     auto tree = this.chainsByContig.require(c.targetName, new IntervalSplayTree!ChainLink);
@@ -298,37 +305,74 @@ struct ChainFile
         }
         // Don't forget the last chain
         auto c = Chain(chainArray[chainStart .. $]);
-        hts_log_trace(__FUNCTION__, format("Final Chain: %s", c));
+        debug hts_log_trace(__FUNCTION__, format("Final Chain: %s", c));
 
         // Does this contig exist in the map?
         auto tree = this.chainsByContig.require(c.targetName, new IntervalSplayTree!ChainLink);
 
+        ////////////////////////////////////////////////////
         // Insert all intervals from the chain into the tree
         foreach(link; c.links)
             (*tree).insert(*link);
+        ///////////////////////////////////////////////////
 
+        debug { // debug-only to speed startup
+            foreach(contig; this.chainsByContig.byKey) {
+                hts_log_trace(__FUNCTION__, format("Contig: %s", contig));
+            }
+        }
 
         // END ChainFile ctor
-        foreach(contig; this.chainsByContig.byKey) {
-            hts_log_trace(__FUNCTION__, format("Contig: %s", contig));
-        }
     }
 
     /// Lift coordinates from one build to another
+    /// TODO: error handling (at cost of speed)
     void lift(ref string contig, ref int start, ref int end)
     {
         auto i = BasicInterval(start, end);
-        auto o = this.chainsByContig[contig].findOverlapsWith(i);
+        auto o = this.chainsByContig[contig].findOverlapsWith(i);   // returns Node(s)
 
-        // marked as debug because in hot code path
-        debug {
+        debug { // marked as debug because in hot code path
             foreach(x; o) {
                 hts_log_trace(__FUNCTION__, format("%s", *x));
             }
         }
-        
-        contig = "chr99";
-        start = 123;
-        end = 456;
+
+        if (o.length == 0)
+        {
+            contig = "chr0";
+            return;
+        }
+        else if (o.length == 1)
+        {
+            // TODO: contig
+            contig = "chr999";
+
+            // TODO can we make this prettier?
+            const auto isect = intersect(i, o.front().interval);
+            start = isect.start + o.front().interval.delta;
+            end = isect.end + o.front().interval.delta;
+
+            return;
+        }
+        else
+        {
+            auto isect = o.map!(x => intersect(i, x.interval));
+
+        }
     }
+}
+
+/// return the intersection of two intervals
+/// TODO: rewrite template to take single type and return same
+/// TODO: error handling (at cost of speed)
+pragma(inline, true)
+BasicInterval intersect(IntervalType1, IntervalType2)(IntervalType1 int1, IntervalType2 int2)
+{
+    auto ret = BasicInterval(
+        max(int1.start, int2.start),
+        min(int1.end, int2.end)
+    );
+
+    return ret;
 }

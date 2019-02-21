@@ -310,11 +310,9 @@ struct ChainFile
         // Does this contig exist in the map?
         auto tree = this.chainsByContig.require(c.targetName, new IntervalSplayTree!ChainLink);
 
-        ////////////////////////////////////////////////////
         // Insert all intervals from the chain into the tree
         foreach(link; c.links)
             (*tree).insert(*link);
-        ///////////////////////////////////////////////////
 
         debug { // debug-only to speed startup
             foreach(contig; this.chainsByContig.byKey) {
@@ -322,6 +320,11 @@ struct ChainFile
             }
         }
 
+        // show me what's in the last accessed tree:
+        debug { // debug-only to speed startup
+            while(tree.iteratorNext() !is null)
+            hts_log_trace(__FUNCTION__, format("sorted tree entry: %s", *tree.cur));
+        }
         // END ChainFile ctor
     }
 

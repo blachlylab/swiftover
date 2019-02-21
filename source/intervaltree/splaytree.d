@@ -520,8 +520,8 @@ struct IntervalSplayTree(IntervalType)
             ret ~= findOverlapsWith(qinterval, current.right);
 
         // How to splay tree when multiple intervals are retrieved is undefined
-        if (ret.length == 1)
-            splay(ret[0]);
+        //if (ret.length == 1)
+        //    splay(ret[0]);    // even this is not compatible with recursion approach
         
         return ret;
     }

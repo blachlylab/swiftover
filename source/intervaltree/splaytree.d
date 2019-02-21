@@ -496,7 +496,7 @@ struct IntervalSplayTree(IntervalType)
     /// TODO: benchmark return Node[]
     ///
     /// NOTES: Originally the function signature was (IntervalType qinterva, Node *startAt = null)
-    Node*[] findOverlapsWith(T)(T qinterval, Node *startAt = null)
+    Node*[] findOverlapsWithRecurse(T)(T qinterval, Node *startAt = null)
     {
         Node*[] ret;
         Node * current;
@@ -512,12 +512,12 @@ struct IntervalSplayTree(IntervalType)
         // check left
         // using '>' because half-open coordinates (converse: search until max <= q.start)
         if (current.left && current.left.max > qinterval.start)
-            ret ~= findOverlapsWith(qinterval, current.left);
+            ret ~= findOverlapsWithRecurse(qinterval, current.left);
 
         // check right
         // using '<' ecause half-open coordinates (converse: search until node.start >= q.end)
         if (current.right && current.right.interval.start < qinterval.end)
-            ret ~= findOverlapsWith(qinterval, current.right);
+            ret ~= findOverlapsWithRecurse(qinterval, current.right);
 
         // How to splay tree when multiple intervals are retrieved is undefined
         //if (ret.length == 1)
@@ -526,7 +526,53 @@ struct IntervalSplayTree(IntervalType)
         return ret;
     }
 
-    
+    ///
+    /// We use template type "T" here instead of the enclosing struct's IntervalType
+    /// so that we can efrom externally query with any time of interval object
+    Node*[] findOverlapsWith(T)(T qinterval)
+    if (__traits(hasMember, T, "start") &&
+        __traits(hasMember, T, "end"))
+    {
+        Node*[] ret;
+        Node*[] stack;  // TODO this is not a real stack, but a queue , popBack() followed by append copies entire array
+        
+        Node* current;
+
+        stack ~= this.root;
+
+        while(stack.length >= 1)
+        {
+            /*
+            current = stack.front();
+            // Sadly there is no combination of front() and popFront()
+            // https://github.com/dlang/phobos/pull/4010
+            stack.popFront();
+            */
+            current = stack[0];
+            stack = stack[1 .. $];
+
+            // if query interval lies to the right of current tree, skip  
+            if (qinterval.start >= current.max) continue;
+
+            // if query interval end is left of the current node's start,
+            // look in the left subtree
+            if (qinterval.end <= current.interval.start)
+            {
+                if (current.left) stack ~= current.left;
+                continue;
+            }
+
+            // if current node overlaps query interval, save it and search its children
+            if (current.interval.overlaps(qinterval)) ret ~= current;
+            if (current.left) stack ~= current.left;
+            if (current.right) stack ~= current.right;
+        }
+
+        if (ret.length == 1) splay(ret[0]);
+        // TODO else len > 1 ??? 
+
+        return ret;
+    }
 
     /// find interval by exact key -- NOT overlap
     Node *findxxx(IntervalType interval)

@@ -1,0 +1,8 @@
+{
+	"fileVersion": 1,
+	"versions": {
+		"dhtslib": {"path":"../dhtslib"},
+		"emsi_containers": "0.8.0-alpha.12",
+		"stdx-allocator": "2.77.5"
+	}
+}

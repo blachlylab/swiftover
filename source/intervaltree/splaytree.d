@@ -30,7 +30,8 @@ return false in any other scenario:
 NOTE that in half-open coordinates [start, end)
  i1.end == i2.start => Adjacent, but NO overlap
 */
-pragma(inline, true)
+// DMD2 cannot inline this; LDC2 can
+//pragma(inline, true)
 bool overlaps(IntervalType1, IntervalType2)(IntervalType1 int1, IntervalType2 int2)
 if (__traits(hasMember, IntervalType1, "start") &&
     __traits(hasMember, IntervalType1, "end") &&

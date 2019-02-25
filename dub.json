@@ -5,6 +5,8 @@
 	"homepage": "http://github.com/blachlylab/swiftover",
 	"license": "GPL-3.0",
 	"dependencies": {
-		"dhtslib": { "path": "../dhtslib" }
-	}
+		"dhtslib": { "path": "../dhtslib" },
+        "emsi_containers": "0.8.0-alpha.12"
+	},
+    "buildRequirements": [ "allowWarnings" ]
 }

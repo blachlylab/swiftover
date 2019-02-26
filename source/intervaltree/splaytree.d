@@ -9,6 +9,7 @@ License for commercial use: Negotiable; contact author
 */
 module intervaltree.splaytree;
 
+// DMD2 cannot inline the below overlap function; LDC2 can. Haven't checked GDC
 /** Detect overlap between this interval and other given interval
     in a half-open coordinate system [start, end)
 
@@ -30,8 +31,8 @@ return false in any other scenario:
 NOTE that in half-open coordinates [start, end)
  i1.end == i2.start => Adjacent, but NO overlap
 */
-// DMD2 cannot inline this; LDC2 can
 //pragma(inline, true)
+@nogc nothrow
 bool overlaps(IntervalType1, IntervalType2)(IntervalType1 int1, IntervalType2 int2)
 if (__traits(hasMember, IntervalType1, "start") &&
     __traits(hasMember, IntervalType1, "end") &&
@@ -60,7 +61,8 @@ struct BasicInterval
     int end;    /// zero-based half-open
 
     /// override the <, <=, >, >= operators; we'll use compiler generated default opEqual
-    int opCmp(const ref BasicInterval other) const
+    @nogc nothrow
+    int opCmp(const ref BasicInterval other) const 
     {		
 		if (this.start < other.start) return -1;
 		else if(this.start > other.start) return 1;
@@ -69,7 +71,8 @@ struct BasicInterval
 		else return 0;	// would be reached in case of equality
     }
     /// override <, <=, >, >= to compare directly to int: compare only the start coordinate
-    int opCmp(const int other) const
+    @nogc nothrow
+    int opCmp(const int other) const 
     {
         return this.start - other;
     }
@@ -100,20 +103,22 @@ if (__traits(hasMember, IntervalType, "start") &&
     IntervalTreeNode *right;    /// right child
 
     /// Does the interval in this node overlap the interval in the other node?
-    pragma(inline, true) bool overlaps(const ref IntervalTreeNode other)
+    pragma(inline, true) @nogc nothrow bool overlaps(const ref IntervalTreeNode other)
         { return this.interval.overlaps(other.interval); }
 
     /// non-default ctor: construct Node from interval, update max
     /// side note: D is beautiful in that Node(i) will work just fine
     /// without this constructor since its first member is IntervalType interval,
     /// but we need the constructor to update max.
-    this(IntervalType i)
+    @nogc nothrow
+    this(IntervalType i) 
     {
         this.interval = i;  // blit
         this.max = i.end;
     }
 
     /// Returns true if this node is the left child of its' parent
+    @nogc nothrow
     bool isLeftChild()
     {
         if (this.parent !is null)   // may be null if is root
@@ -156,7 +161,8 @@ struct IntervalSplayTree(IntervalType)
 
     // NB if change to class, add 'final'
     /** zig a child of the root node */
-    @nogc private void zig(Node *n)
+    @nogc nothrow
+    private void zig(Node *n) 
     in
     {
         // zig should not be called on empty tree
@@ -217,7 +223,8 @@ struct IntervalSplayTree(IntervalType)
 
     // NB if change to class, add 'final'
     /** zig-zig  */
-    @nogc private void zigZig(Node *n)
+    @nogc nothrow
+    private void zigZig(Node *n) 
     in
     {
         // zig-zig should not be called on empty tree
@@ -323,7 +330,8 @@ struct IntervalSplayTree(IntervalType)
 
     // NB if change to class, add 'final'
     /** zig-zag */
-    @nogc private void zigZag(Node *n)
+    @nogc nothrow
+    private void zigZag(Node *n) 
     in
     {
         // zig-zag should not be called on empty tree
@@ -425,7 +433,8 @@ struct IntervalSplayTree(IntervalType)
 
     // NB if change to class, add 'final'
     /** Bring Node N to top of tree */
-    @nogc private void splay(Node *n)
+    @nogc nothrow
+    private void splay(Node *n) 
     {
         while (n.parent !is null)
         {
@@ -462,6 +471,7 @@ struct IntervalSplayTree(IntervalType)
 
     /// find interval
     /// TODO: use augmented tree's 'max' to efficiently bail out early
+    @nogc nothrow
     Node *find(IntervalType interval)
     {
         Node *ret;
@@ -497,7 +507,7 @@ struct IntervalSplayTree(IntervalType)
     /// TODO: benchmark return Node[]
     ///
     /// NOTES: Originally the function signature was (IntervalType qinterva, Node *startAt = null)
-    Node*[] findOverlapsWithRecurse(T)(T qinterval, Node *startAt = null)
+    Node*[] findOverlapsWithRecurse(T)(T qinterval, Node *startAt = null) nothrow
     {
         Node*[] ret;
         Node * current;
@@ -530,6 +540,7 @@ struct IntervalSplayTree(IntervalType)
     ///
     /// We use template type "T" here instead of the enclosing struct's IntervalType
     /// so that we can efrom externally query with any time of interval object
+    nothrow
     Node*[] findOverlapsWith(T)(T qinterval)
     if (__traits(hasMember, T, "start") &&
         __traits(hasMember, T, "end"))
@@ -627,12 +638,14 @@ struct IntervalSplayTree(IntervalType)
     }
 
     /// find minimum valued Node (interval)
-    Node *findMin()
+    @nogc nothrow
+    Node *findMin() 
     {
         return findSubtreeMin(this.root);
     }
     /// ditto
-    private static Node* findSubtreeMin(Node *n)
+    @nogc nothrow
+    private static Node* findSubtreeMin(Node *n) 
     {
         Node *cur = n;
         if (cur is null) return cur;
@@ -652,7 +665,8 @@ struct IntervalSplayTree(IntervalType)
         bubbleUp =  How many nodes to process recursively upward
                     (default: -1 => no limit])
     */
-    void updateMax(Node *n, int bubbleUp = -1)
+    @nogc nothrow
+    void updateMax(Node *n, int bubbleUp = -1) 
     {
         import std.algorithm.comparison : max;
 
@@ -673,7 +687,7 @@ struct IntervalSplayTree(IntervalType)
 
     /// insert interval, updating "max" on the way down
     // TODO: unit test degenerate start intervals (i.e. [10, 11), [10, 13) )
-    Node * insert(IntervalType i)
+    Node * insert(IntervalType i) nothrow
     {
         // if empty tree, assign a new root and return
         if (this.root is null)
@@ -738,11 +752,13 @@ struct IntervalSplayTree(IntervalType)
     bool remove(IntervalType i);
 
     /// iterator functions: reset
+    @nogc nothrow
     void iteratorReset()
     {
         this.cur = null;
     }
     /// iterator functions: next
+    @nogc nothrow
     Node *iteratorNext()
     {
         if (this.cur is null)   // initial condition

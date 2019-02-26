@@ -39,7 +39,7 @@ struct ChainLink
     int delta;  /// fixed offset from tstart->qstart  == qstart - tstart (same for end as intervals must be same len)
 
     /// Overload <, <=, >, >= for ChainLink/ChainLin; compare query
-	int opCmp(ref const ChainLink other) const
+	@nogc int opCmp(ref const ChainLink other) const nothrow
 	{
 		// Intervals from different contigs are incomparable
         // TODO: or are they???
@@ -52,7 +52,7 @@ struct ChainLink
 		else return 0;	// would be reached in case of equality (although we do not expect)
 	}
 	/// Overload <, <=, >, >= for ChainLink/int 
-	int opCmp(const int x) const
+	@nogc int opCmp(const int x) const nothrow
 	{
 		if (this.start < x) return -1;
 		else if (this.start > x) return 1;
@@ -131,6 +131,8 @@ struct Chain
 	this(R)(R lines)
     if (isInputRange!R)
 	{
+        this.links.reserve(8192);
+
         // Example chain header line: 
 		// chain 20851231461 chr1 249250621 + 10000 249240621 chr1 248956422 + 10000 248946422 2
 		// assumes no errors in chain line
@@ -374,6 +376,7 @@ struct ChainFile
 /// TODO: rewrite template to take single type and return same
 /// TODO: error handling (at cost of speed)
 pragma(inline, true)
+@nogc nothrow
 BasicInterval intersect(IntervalType1, IntervalType2)(IntervalType1 int1, IntervalType2 int2)
 {
     auto ret = BasicInterval(

@@ -24,11 +24,13 @@ import dhtslib.htslib.hts_log;
 struct ChainLink
 {
     // target and query intervals in 1:1 bijective relationship
-    int tcid;   /// Target (reference) contig id
+    string tcontig; /// Target (reference) contig name
+    int tcid;   /// Target (reference) contig id (unused)
     int tstart; /// Target (reference) start
     int tend;   /// Target (reference) end
 
-    int qcid;   /// Query contig id
+    string qcontig; /// Query contig name
+    int qcid;   /// Query contig id (unused)
     int qstart; /// Query start
     int qend;   /// Query end
 
@@ -179,10 +181,12 @@ struct Chain
             // set up ChainLink from alignement data line
             ChainLink* link = new ChainLink;
 
+            link.tcontig = this.targetName;
             link.tcid = 99; // TODO, get int id for string this.targetName
             link.tstart = tFrom;
             link.tend = tFrom + size;
 
+            link.qcontig = this.queryName;
             link.qcid = 101; // TODO, get int id for string this.queryName
             link.qstart = qFrom;
             link.qend = qFrom + size;
@@ -343,17 +347,17 @@ struct ChainFile
             }
         }
 
-        if (o.length == 0)
+        if (o.length == 0)  // no match
         {
             contig = "chr0";
             return;
         }
-        else if (o.length == 1)
+        else if (o.length == 1) // one match
         {
             debug hts_log_trace(__FUNCTION__, format("Basic interval: %s | overlap interval: %s | delta %d", i,
                 o.front().interval, o.front().interval.delta));
-            // TODO: contig
-            contig = "chrONE";
+
+            contig = o.front().interval.qcontig;
 
             // TODO can we make this prettier?
             const auto isect = intersect(i, o.front().interval);
@@ -362,7 +366,7 @@ struct ChainFile
 
             return;
         }
-        else
+        else    // multiple matches
         {
             // TODO: contig
             contig = "chr999";

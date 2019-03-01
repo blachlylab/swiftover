@@ -31,7 +31,6 @@ return false in any other scenario:
 NOTE that in half-open coordinates [start, end)
  i1.end == i2.start => Adjacent, but NO overlap
 */
-//pragma(inline, true)
 @nogc nothrow
 bool overlaps(IntervalType1, IntervalType2)(IntervalType1 int1, IntervalType2 int2)
 if (__traits(hasMember, IntervalType1, "start") &&
@@ -39,6 +38,9 @@ if (__traits(hasMember, IntervalType1, "start") &&
     __traits(hasMember, IntervalType2, "start") &&
     __traits(hasMember, IntervalType2, "end"))
 {
+    // DMD cannot inline this
+    version(LDC) pragma(inline, true);
+    version(GDC) pragma(inline, true);
     // int1   =====    =======
     // int2 =======  =======
     if (int2.start <= int1.start &&  int1.start < int2.end) return true;

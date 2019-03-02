@@ -16,6 +16,7 @@ int main(string[] args)
     string fileType;
     string infile;
     string outfile;
+    string unmatched;
 
     GetoptResult usage;
 
@@ -28,6 +29,7 @@ int main(string[] args)
         "c|chainfile", "UCSC-format chain file", &chainfile,
         "i|infile", "Input file; - or omit for stdin", &infile,
         "o|outfile", "Output file; - or omit for stdout", &outfile,
+        "u|unmatched", "Unmatched output file", &unmatched,
     );
     }
     catch (GetOptException e)
@@ -58,11 +60,16 @@ int main(string[] args)
         auto fo = File(outfile, "w");
         fo.close();
     }
+    if (unmatched)
+    {
+        auto fo = File(unmatched, "w");
+        fo.close();
+    }
 
     switch(fileType)
     {
         case "bed":
-            liftBED(chainfile, infile, outfile);
+            liftBED(chainfile, infile, outfile, unmatched);
             break;
         case "vcf":
             liftVCF(chainfile, infile, outfile);

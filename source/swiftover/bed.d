@@ -12,12 +12,13 @@ import swiftover.chain;
 /// https://genome.ucsc.edu/FAQ/FAQformat.html#format1
 /// 
 /// https://software.broadinstitute.org/software/igv/BED
-void liftBED(string chainfile, string infile, string outfile)
+void liftBED(string chainfile, string infile, string outfile, string unmatched)
 {
     auto cf = ChainFile(chainfile);
     
     File fi;
     File fo;
+    File fu;
 
     if (infile == "-" || infile == "")
         fi = stdin;
@@ -28,6 +29,9 @@ void liftBED(string chainfile, string infile, string outfile)
         fo = stdout;
     else
         fo = File(outfile, "w");
+    
+    if (unmatched)
+        fu = File(unmatched, "w");
 
     auto fields = appender!(char[][]);
 

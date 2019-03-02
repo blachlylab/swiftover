@@ -818,10 +818,10 @@ unittest
     while(t.iteratorNext() !is null)
         writefln("Value in order: %s", *t.cur);
     
-    auto n0 = t.find(BasicInterval(200, 250));
+    const auto n0 = t.find(BasicInterval(200, 250));
     assert(n0 is null);
 
-    auto n1 = t.find(BasicInterval(200, 300));
+    const auto n1 = t.find(BasicInterval(200, 300));
     assert(n1.interval == BasicInterval(200, 300));
 
     writeln("\n---\n");

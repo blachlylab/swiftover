@@ -8,10 +8,24 @@ import std.stdio;
 
 import swiftover.chain;
 
+/** Lift rows of infile to outfile using liftover chains in chainfile
+
 /// BED is zero-based, half-open
 /// https://genome.ucsc.edu/FAQ/FAQformat.html#format1
-/// 
+/// https://useast.ensembl.org/info/website/upload/bed.html
 /// https://software.broadinstitute.org/software/igv/BED
+///
+    Rows with complete or partial match(es) will go to outfile.
+
+    Rows with no match will go to unmatched.
+
+    Implementation note: if an interval incompletely lifts over, for example,
+    if only the first 80 of 100 nt have a lifted over representation (and no
+    other chain picks up any of the last 20 nt), the truncated interval in 
+    destination coordinates will be output, **but the unmatched portion will
+    not go into the unmatched file for reasons of speed**. This behavior could
+    be altered later if desired, but with speed penalty.
+*/
 void liftBED(string chainfile, string infile, string outfile, string unmatched)
 {
     auto cf = ChainFile(chainfile);
@@ -55,8 +69,8 @@ void liftBED(string chainfile, string infile, string outfile, string unmatched)
         int end = fields.data[2].to!int;
 
         // #matches
-        immutable auto ret = cf.lift(contig, start, end);
-        if (ret)
+        auto ret = cf.lift(contig, start, end);
+        if (ret.length > 0)
         {
             fields.data[0] = contig.dup;
             fields.data[1] = start.text.dup;        // TODO benchmark vs .toChars.array
@@ -66,16 +80,17 @@ void liftBED(string chainfile, string infile, string outfile, string unmatched)
         debug
         {
             import dhtslib.htslib.hts_log : hts_log_debug;
-            if (ret > 1) 
+            if (ret.length > 1) 
             {
                 hts_log_debug(__FUNCTION__, "Multiple matches");
                 hts_log_debug(__FUNCTION__, line.to!string);
             }
         }
 
-        if (ret == 0)
+        if (ret.length == 0)
             fu.writef("%s\n", fields.data.join("\t"));
-        else if (ret == 1)
+        else if (ret.length == 1)
+        // WIP TODO
             fo.writef("%s\n", fields.data.join("\t"));
     }
 }

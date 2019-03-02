@@ -28,7 +28,14 @@ struct ChainInterval
         this.start = start;
         this.end = end;
     }
-
+    /// This constructor, even though matches data layout/default ctor, necessary due to above
+    this(string contig, int start, int end)
+    {
+        this.contig = contig;
+        this.start = start;
+        this.end = end;
+    } 
+    
     string toString() const
     {
         return format("%s:%d-%d", this.contig, this.start, this.end);
@@ -365,7 +372,7 @@ struct ChainFile
 
         Returns:    Number of matches
     */
-    uint lift(ref string contig, ref int start, ref int end)
+    ChainInterval[] lift(string contig, int start, int end)
     {
         auto i = BasicInterval(start, end);
         auto o = this.chainsByContig[contig].findOverlapsWith(i);   // returns Node*(s)
@@ -379,21 +386,26 @@ struct ChainFile
         if (o.length == 0)  // no match
         {
             debug hts_log_trace(__FUNCTION__, "No match to interval");
-            return 0;
+
+            // -O3 will elide the stack alloc, thanks godbolt.org !
+            ChainInterval[] ret;
+            return ret;
         }
         else if (o.length == 1) // one match
         {
             debug hts_log_trace(__FUNCTION__, format("Basic interval: %s | overlap interval: %s | delta %d", i,
                 o.front().interval, o.front().interval.delta));
 
-            contig = o.front().interval.qcontig;
-
-            // TODO can we make this prettier?
+            // intersect makes the interval comply with bounds of chain link
             const auto isect = intersect(i, o.front().interval);
-            start = isect.start + o.front().interval.delta;
-            end = isect.end + o.front().interval.delta;
+            //TODO here is where we would want to report truncated interval
+            // delta is the numeric offset from input to destination coordinates 
+            ChainInterval ci = ChainInterval(
+                o.front().interval.qcontig,
+                isect.start + o.front().interval.delta,
+                isect.end + o.front().interval.delta);
 
-            return 1;
+            return [ci];
         }
         else    // multiple matches TODO 
         {
@@ -401,13 +413,14 @@ struct ChainFile
             contig = "chr999";
             auto isect = o.map!(x => intersect(i, x.interval));
 
-            return cast(uint)o.length;
+            ChainInterval[] ret;
+            return ret;
         }
     }
 }
 
 /// return the intersection of two intervals
-/// NOTE: this requires the first two elements be (start, end)
+/// NOTE: this requires the first two elements be (start, end) or have ctor(start, end)
 /// TODO: error handling (at cost of speed)
 pragma(inline, true)
 @nogc nothrow

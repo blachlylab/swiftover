@@ -33,6 +33,13 @@ void liftBED(string chainfile, string infile, string outfile, string unmatched)
     if (unmatched)
         fu = File(unmatched, "w");
 
+    scope(exit)
+    {
+        fi.close();
+        fo.close();
+        fu.close();
+    }
+
     auto fields = appender!(char[][]);
 
     foreach(line; fi.byLine())
@@ -46,13 +53,23 @@ void liftBED(string chainfile, string infile, string outfile, string unmatched)
         int start = fields.data[1].to!int;
         int end = fields.data[2].to!int;
 
-        cf.lift(contig, start, end);
+        // 0 on success, -1 on failure (no match), -2 on multiple matches
+        immutable auto ret = cf.lift(contig, start, end);
+        if (ret > -2)
+        {
+            fields.data[0] = contig.dup;
+            fields.data[1] = start.text.dup;        // TODO benchmark vs .toChars.array
+            fields.data[2] = end.text.dup;          // TODO benchmark vs .toChars.array
+        }
+        else {
+            import dhtslib.htslib.hts_log : hts_log_debug;
+            debug hts_log_debug(__FUNCTION__, "Multiple matches");
+            debug hts_log_debug(__FUNCTION__, line.to!string);
+        }
 
-        fields.data[0] = contig.dup;
-        fields.data[1] = start.text.dup;        // TODO benchmark vs .toChars.array
-        fields.data[2] = end.text.dup;          // TODO benchmark vs .toChars.array
-
-        fo.writef("%s\n", fields.data.join("\t"));
-
+        if (ret == 0)
+            fo.writef("%s\n", fields.data.join("\t"));
+        else if (ret == -1)
+            fu.writef("%s\n", fields.data.join("\t"));
     }
 }

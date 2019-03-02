@@ -334,9 +334,16 @@ struct ChainFile
         // END ChainFile ctor
     }
 
-    /// Lift coordinates from one build to another
-    /// TODO: error handling (at cost of speed)
-    void lift(ref string contig, ref int start, ref int end)
+    /** Lift coordinates from one build to another
+
+        TODO: error handling (at cost of speed)
+
+        Returns:
+            0 if success
+            -1 if no match
+            -2 if multiple matches (TODO)
+    */
+    int lift(ref string contig, ref int start, ref int end)
     {
         auto i = BasicInterval(start, end);
         auto o = this.chainsByContig[contig].findOverlapsWith(i);   // returns Node(s)
@@ -349,8 +356,8 @@ struct ChainFile
 
         if (o.length == 0)  // no match
         {
-            contig = "chr0";
-            return;
+            debug hts_log_trace(__FUNCTION__, "No match to interval");
+            return -1;
         }
         else if (o.length == 1) // one match
         {
@@ -364,7 +371,7 @@ struct ChainFile
             start = isect.start + o.front().interval.delta;
             end = isect.end + o.front().interval.delta;
 
-            return;
+            return 0;
         }
         else    // multiple matches
         {
@@ -372,21 +379,37 @@ struct ChainFile
             contig = "chr999";
             auto isect = o.map!(x => intersect(i, x.interval));
 
+            return -2;
         }
     }
 }
 
 /// return the intersection of two intervals
-/// TODO: rewrite template to take single type and return same
+/// NOTE: this requires the first two elements be (start, end)
 /// TODO: error handling (at cost of speed)
 pragma(inline, true)
 @nogc nothrow
-BasicInterval intersect(IntervalType1, IntervalType2)(IntervalType1 int1, IntervalType2 int2)
+IntervalType intersect(IntervalType)(IntervalType int1, IntervalType int2)
+if (__traits(hasMember, "IntervalType", "start") &&
+    __traits(hasMember, "IntervalType", "end"))
 {
-    auto ret = BasicInterval(
+    return IntervalType(
+        max(int1.start, int2.start),
+        min(int1.end, int2.end)        
+    );
+}
+/// ditto
+pragma(inline, true)
+@nogc nothrow
+BasicInterval intersect(IntervalType1, IntervalType2)(IntervalType1 int1, IntervalType2 int2)
+if (!is(IntervalType1 == IntervalType2) &&
+    __traits(hasMember, IntervalType1, "start") &&
+    __traits(hasMember, IntervalType1, "end") &&
+    __traits(hasMember, IntervalType2, "start") &&
+    __traits(hasMember, IntervalType2, "end"))
+{
+    return BasicInterval(
         max(int1.start, int2.start),
         min(int1.end, int2.end)
     );
-
-    return ret;
 }

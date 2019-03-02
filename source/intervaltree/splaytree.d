@@ -9,7 +9,8 @@ License for commercial use: Negotiable; contact author
 */
 module intervaltree.splaytree;
 
-// DMD2 cannot inline the below overlap function; LDC2 can. Haven't checked GDC
+import containers.slist;
+
 /** Detect overlap between this interval and other given interval
     in a half-open coordinate system [start, end)
 
@@ -542,17 +543,20 @@ struct IntervalSplayTree(IntervalType)
     ///
     /// We use template type "T" here instead of the enclosing struct's IntervalType
     /// so that we can efrom externally query with any time of interval object
-    nothrow
+    
     Node*[] findOverlapsWith(T)(T qinterval)
     if (__traits(hasMember, T, "start") &&
         __traits(hasMember, T, "end"))
     {
         Node*[] ret;
-        Node*[] stack;  // TODO this is not a real stack, but a queue , popBack() followed by append copies entire array
-        
+//        ret.reserve(7);
+        //Node*[] stack;  // TODO this is not a real stack, but a queue , popBack() followed by append copies entire array
+        SList!(Node*) stack;
+
         Node* current;
 
-        stack ~= this.root;
+        //stack ~= this.root;
+        stack.insertFront(this.root);
 
         while(stack.length >= 1)
         {
@@ -562,8 +566,11 @@ struct IntervalSplayTree(IntervalType)
             // https://github.com/dlang/phobos/pull/4010
             stack.popFront();
             */
+            /*
             current = stack[0];
             stack = stack[1 .. $];
+            */
+            current = stack.moveFront();
 
             // if query interval lies to the right of current tree, skip  
             if (qinterval.start >= current.max) continue;

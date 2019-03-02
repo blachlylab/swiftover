@@ -15,6 +15,31 @@ import intervaltree.splaytree;
 
 import dhtslib.htslib.hts_log;
 
+/// Zero-based, half-open
+struct ChainInterval
+{
+    string contig;  /// whatever
+    int start;      /// whatever
+    int end;        /// whatever
+
+    /// This constructor necessary to allow construction compat with SplayTree::BasicInterval
+    this(int start, int end)
+    {
+        this.start = start;
+        this.end = end;
+    }
+
+    string toString() const
+    {
+        return format("%s:%d-%d", this.contig, this.start, this.end);
+    }
+
+    invariant
+    {
+        assert(this.start <= this.end, "start not <= end");
+    }
+}
+
 /// Represents a mapping from ChainInterval -> ChainInterval
 /// Previously, this contained two "ChainInterval" structs (one target, one query)
 /// But they are merged for efficiency
@@ -338,15 +363,12 @@ struct ChainFile
 
         TODO: error handling (at cost of speed)
 
-        Returns:
-            0 if success
-            -1 if no match
-            -2 if multiple matches (TODO)
+        Returns:    Number of matches
     */
-    int lift(ref string contig, ref int start, ref int end)
+    uint lift(ref string contig, ref int start, ref int end)
     {
         auto i = BasicInterval(start, end);
-        auto o = this.chainsByContig[contig].findOverlapsWith(i);   // returns Node(s)
+        auto o = this.chainsByContig[contig].findOverlapsWith(i);   // returns Node*(s)
 
         debug { // marked as debug because in hot code path
             foreach(x; o) {
@@ -357,7 +379,7 @@ struct ChainFile
         if (o.length == 0)  // no match
         {
             debug hts_log_trace(__FUNCTION__, "No match to interval");
-            return -1;
+            return 0;
         }
         else if (o.length == 1) // one match
         {
@@ -371,15 +393,15 @@ struct ChainFile
             start = isect.start + o.front().interval.delta;
             end = isect.end + o.front().interval.delta;
 
-            return 0;
+            return 1;
         }
-        else    // multiple matches
+        else    // multiple matches TODO 
         {
             // TODO: contig
             contig = "chr999";
             auto isect = o.map!(x => intersect(i, x.interval));
 
-            return -2;
+            return cast(uint)o.length;
         }
     }
 }

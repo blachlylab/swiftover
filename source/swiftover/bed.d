@@ -54,23 +54,28 @@ void liftBED(string chainfile, string infile, string outfile, string unmatched)
         int start = fields.data[1].to!int;
         int end = fields.data[2].to!int;
 
-        // 0 on success, -1 on failure (no match), -2 on multiple matches
+        // #matches
         immutable auto ret = cf.lift(contig, start, end);
-        if (ret > -2)
+        if (ret)
         {
             fields.data[0] = contig.dup;
             fields.data[1] = start.text.dup;        // TODO benchmark vs .toChars.array
             fields.data[2] = end.text.dup;          // TODO benchmark vs .toChars.array
         }
-        else {
+
+        debug
+        {
             import dhtslib.htslib.hts_log : hts_log_debug;
-            debug hts_log_debug(__FUNCTION__, "Multiple matches");
-            debug hts_log_debug(__FUNCTION__, line.to!string);
+            if (ret > 1) 
+            {
+                hts_log_debug(__FUNCTION__, "Multiple matches");
+                hts_log_debug(__FUNCTION__, line.to!string);
+            }
         }
 
         if (ret == 0)
-            fo.writef("%s\n", fields.data.join("\t"));
-        else if (ret == -1)
             fu.writef("%s\n", fields.data.join("\t"));
+        else if (ret == 1)
+            fo.writef("%s\n", fields.data.join("\t"));
     }
 }

@@ -2,6 +2,9 @@
 
 This is not threadsafe! Every query modifies the tree.
 
+Timing data:
+    findOverlapsWith: UnrolledList < D array < SList (emsi)
+
 Author: James S. Blachly, MD <james.blachly@gmail.com>
 Copyright: Copyright (c) 2019 James Blachly
 License for personal, academic, and noncomercial use: Apache 2.0
@@ -9,7 +12,7 @@ License for commercial use: Negotiable; contact author
 */
 module intervaltree.splaytree;
 
-import containers.slist;
+import containers.unrolledlist;
 
 /** Detect overlap between this interval and other given interval
     in a half-open coordinate system [start, end)
@@ -543,34 +546,22 @@ struct IntervalSplayTree(IntervalType)
     ///
     /// We use template type "T" here instead of the enclosing struct's IntervalType
     /// so that we can efrom externally query with any time of interval object
-    
+    nothrow
     Node*[] findOverlapsWith(T)(T qinterval)
     if (__traits(hasMember, T, "start") &&
         __traits(hasMember, T, "end"))
     {
         Node*[] ret;
 //        ret.reserve(7);
-        //Node*[] stack;  // TODO this is not a real stack, but a queue , popBack() followed by append copies entire array
-        SList!(Node*) stack;
+        UnrolledList!(Node *) stack;
 
         Node* current;
 
-        //stack ~= this.root;
-        stack.insertFront(this.root);
+        stack.insertBack(this.root);
 
         while(stack.length >= 1)
         {
-            /*
-            current = stack.front();
-            // Sadly there is no combination of front() and popFront()
-            // https://github.com/dlang/phobos/pull/4010
-            stack.popFront();
-            */
-            /*
-            current = stack[0];
-            stack = stack[1 .. $];
-            */
-            current = stack.moveFront();
+            current = stack.moveBack();
 
             // if query interval lies to the right of current tree, skip  
             if (qinterval.start >= current.max) continue;
@@ -579,14 +570,14 @@ struct IntervalSplayTree(IntervalType)
             // look in the left subtree
             if (qinterval.end <= current.interval.start)
             {
-                if (current.left) stack ~= current.left;
+                if (current.left) stack.insertBack(current.left);
                 continue;
             }
 
             // if current node overlaps query interval, save it and search its children
             if (current.interval.overlaps(qinterval)) ret ~= current;
-            if (current.left) stack ~= current.left;
-            if (current.right) stack ~= current.right;
+            if (current.left) stack.insertBack(current.left);
+            if (current.right) stack.insertBack(current.right);
         }
 
         if (ret.length == 1) splay(ret[0]);

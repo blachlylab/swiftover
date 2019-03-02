@@ -184,9 +184,9 @@ struct IntervalSplayTree(IntervalType)
 
         if (p.left == n)    // node is left child of parent
         {
-            Node *A = n.left;   // left child
+            //Node *A = n.left;   // left child
             Node *B = n.right;  // right child
-            Node *C = p.right;  // sister node
+            //Node *C = p.right;  // sister node
 
             n.parent = null;    // rotate to top (splay() fn handles tree.root reassignment)
 
@@ -203,9 +203,9 @@ struct IntervalSplayTree(IntervalType)
             // safety check during development
             assert(p.right == n);
 
-            Node *A = p.left;   // sister node
+            //Node *A = p.left;   // sister node
             Node *B = n.left;   // left child
-            Node *C = n.right;  // right child
+            //Node *C = n.right;  // right child
 
             n.parent = null;    // rotate to top (splay() fn handles tree.root reassignment)
 
@@ -260,10 +260,10 @@ struct IntervalSplayTree(IntervalType)
  /   \
 /A\  /B\
 */
-            Node *A = n.left;
+            //Node *A = n.left;
             Node *B = n.right;
             Node *C = p.right;
-            Node *D = g.right;
+            //Node *D = g.right;
 
             n.parent = g.parent;
             if (n.parent !is null)
@@ -299,10 +299,10 @@ struct IntervalSplayTree(IntervalType)
             // safety check during development
             assert(p.right == n);
 
-            Node *A = g.left;
+            //Node *A = g.left;
             Node *B = p.left;
             Node *C = n.left;
-            Node *D = n.right;
+            //Node *D = n.right;
 
             n.parent = g.parent;
             if (n.parent !is null)
@@ -368,10 +368,10 @@ struct IntervalSplayTree(IntervalType)
              /   \
             /B\  /C\
 */
-            Node *A = p.left;
+            //Node *A = p.left;
             Node *B = n.left;
             Node *C = n.right;
-            Node *D = g.right;
+            //Node *D = g.right;
 
             n.parent = g.parent;
             n.left = p;
@@ -403,10 +403,10 @@ struct IntervalSplayTree(IntervalType)
        /   \
       /B\  /C\
 */
-            Node *A = g.left;
+            //Node *A = g.left;
             Node *B = n.left;
             Node *C = n.right;
-            Node *D = p.right;
+            //Node *D = p.right;
 
             n.parent = g.parent;
             n.left = g;

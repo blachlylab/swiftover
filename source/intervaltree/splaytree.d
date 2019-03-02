@@ -647,11 +647,11 @@ struct IntervalSplayTree(IntervalType)
     @nogc nothrow
     private static Node* findSubtreeMin(Node *n) 
     {
-        Node *cur = n;
-        if (cur is null) return cur;
-        while (cur.left !is null)
-            cur = cur.left;         // descend leftward
-        return cur;
+        Node *current = n;
+        if (current is null) return current;
+        while (current.left !is null)
+            current = current.left;         // descend leftward
+        return current;
     }
 
     /** Start at Node n, update max from subtrees, and bubble upward

@@ -44,7 +44,8 @@ void liftBED(string chainfile, string infile, string outfile, string unmatched)
 
     foreach(line; fi.byLine())
     {
-        if (line.length > 4 && (line[0..5] == "track" || line[0..5] == "brows")) continue;
+        if (line.length > 0 && line[0] == '#') continue;
+        else if (line.length > 4 && (line[0..5] == "track" || line[0..5] == "brows")) continue;
 
         fields.clear();
         fields.put( line.splitter() );

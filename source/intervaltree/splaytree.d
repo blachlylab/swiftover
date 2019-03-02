@@ -504,48 +504,15 @@ struct IntervalSplayTree(IntervalType)
         return ret;
     }
 
-    /// find interval(s) overlapping given interval
-    /// unlike find interval by key, matching elements could be in left /and/ right subtree
-    /// Implemented using a recursive strategy
-    /// TODO: rewrite from recursion to a while(current) + stack-based approach and benchmark;
-    ///     this could eliminate many function calls (unless they were optimized out or tree did not require descent)
-    ///     and also could eliminate copying qinterval repeatedly
-    /// TODO: benchmark return Node[]
-    ///
-    /// NOTES: Originally the function signature was (IntervalType qinterva, Node *startAt = null)
-    Node*[] findOverlapsWithRecurse(T)(T qinterval, Node *startAt = null) nothrow
-    {
-        Node*[] ret;
-        Node * current;
-
-        if (!startAt)
-            current = this.root;
-        else
-            current = startAt;
+    /** find interval(s) overlapping given interval
         
-        // check root
-        if (current.interval.overlaps(qinterval)) ret ~= current;
+        unlike find interval by key, matching elements could be in left /and/ right subtree
 
-        // check left
-        // using '>' because half-open coordinates (converse: search until max <= q.start)
-        if (current.left && current.left.max > qinterval.start)
-            ret ~= findOverlapsWithRecurse(qinterval, current.left);
+        We use template type "T" here instead of the enclosing struct's IntervalType
+        so that we can from externally query with any type of interval object
 
-        // check right
-        // using '<' ecause half-open coordinates (converse: search until node.start >= q.end)
-        if (current.right && current.right.interval.start < qinterval.end)
-            ret ~= findOverlapsWithRecurse(qinterval, current.right);
-
-        // How to splay tree when multiple intervals are retrieved is undefined
-        //if (ret.length == 1)
-        //    splay(ret[0]);    // even this is not compatible with recursion approach
-        
-        return ret;
-    }
-
-    ///
-    /// We use template type "T" here instead of the enclosing struct's IntervalType
-    /// so that we can efrom externally query with any time of interval object
+        TODO: benchmark return Node[]
+    */
     nothrow
     Node*[] findOverlapsWith(T)(T qinterval)
     if (__traits(hasMember, T, "start") &&

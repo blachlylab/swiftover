@@ -42,7 +42,7 @@ int main(string[] args)
 
     if (usage.helpWanted)
     {
-        defaultGetoptPrinter("swift liftover",
+        defaultGetoptPrinter("🚀 swift liftover",
             usage.options);
         return 1;
     }

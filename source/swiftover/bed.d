@@ -91,15 +91,5 @@ void liftBED(string chainfile, string infile, string outfile, string unmatched)
                 fo.writef("%s\n", fields.data.join("\t"));
             }
         }
-
-        debug
-        {
-            import dhtslib.htslib.hts_log : hts_log_debug;
-            if (ret.length > 1) 
-            {
-                hts_log_debug(__FUNCTION__, "Multiple matches");
-                hts_log_debug(__FUNCTION__, line.to!string);
-            }
-        }
     }
 }

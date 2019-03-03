@@ -35,7 +35,7 @@ struct ChainInterval
         this.start = start;
         this.end = end;
     } 
-    
+
     string toString() const
     {
         return format("%s:%d-%d", this.contig, this.start, this.end);
@@ -405,16 +405,18 @@ struct ChainFile
                 isect.start + o.front().interval.delta,
                 isect.end + o.front().interval.delta);
 
+            debug if(isect.start + o.front().interval.delta == 248458169) hts_log_debug(__FUNCTION__, format("%s", o.front().interval));
             return [ci];
         }
-        else    // multiple matches TODO 
+        else    // TODO optimize; return Range
         {
-            // TODO: contig
-            contig = "chr999";
             auto isect = o.map!(x => intersect(i, x.interval));
+            auto ret = isect.map!(x => ChainInterval(
+                o.front().interval.qcontig,
+                x.start + o.front().interval.delta,
+                x.end + o.front().interval.delta));
 
-            ChainInterval[] ret;
-            return ret;
+            return array(ret);
         }
     }
 }

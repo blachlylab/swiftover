@@ -57,12 +57,10 @@ struct ChainLink
 {
     // target and query intervals in 1:1 bijective relationship
     string tcontig; /// Target (reference) contig name
-    int tcid;   /// Target (reference) contig id (unused)
     int tstart; /// Target (reference) start
     int tend;   /// Target (reference) end
 
     string qcontig; /// Query contig name
-    int qcid;   /// Query contig id (unused)
     int qstart; /// Query start
     int qend;   /// Query end
 
@@ -77,7 +75,7 @@ struct ChainLink
 	{
 		// Intervals from different contigs are incomparable
         // TODO: or are they???
-		assert(this.tcid == other.tcid);	// formerly return 0, but implies equality, leads to "duplicate insert" bug when using std.container.rbtree
+		assert(this.tcontig == other.tcontig);	// formerly return 0, but implies equality, leads to "duplicate insert" bug when using std.container.rbtree
 		
 		if (this.start < other.start) return -1;
 		else if(this.start > other.start) return 1;
@@ -96,9 +94,9 @@ struct ChainLink
     // Todo, figure out if we can look up the contig id -> string mapping (static member map?)
 	string toString() const
 	{
-		return format("(contig#%d):%d-%d → (contig#%d):%d-%d",
-                    this.tcid, this.tstart, this.tend,
-                    this.qcid, this.qstart, this.qend);
+		return format("%s:%d-%d → %s:%d-%d",
+                    this.tcontig, this.tstart, this.tend,
+                    this.qcontig, this.qstart, this.qend);
 	}
 
     invariant
@@ -214,12 +212,10 @@ struct Chain
             ChainLink* link = new ChainLink;
 
             link.tcontig = this.targetName;
-            link.tcid = 99; // TODO, get int id for string this.targetName
             link.tstart = tFrom;
             link.tend = tFrom + size;
 
             link.qcontig = this.queryName;
-            link.qcid = 101; // TODO, get int id for string this.queryName
             link.qstart = qFrom;
             link.qend = qFrom + size;
 

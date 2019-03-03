@@ -48,34 +48,29 @@ struct ChainInterval
 }
 
 /// Represents a mapping from ChainInterval -> ChainInterval
-/// Previously, this contained two "ChainInterval" structs (one target, one query)
-/// But they are merged for efficiency
 /// Beacuse this is what's stored in RBTree nodes,
 /// should also implement Interface Interval, but delegate to member 'query'
 /// (tree sorted by query, not target)
 struct ChainLink
 {
     // target and query intervals in 1:1 bijective relationship
-    string tcontig; /// Target (reference) contig name
-    int tstart; /// Target (reference) start
-    int tend;   /// Target (reference) end
+    ChainInterval target;   /// Target (reference)
+    ChainInterval query;    /// Query (destination)
 
-    string qcontig; /// Query contig name
-    int qstart; /// Query start
-    int qend;   /// Query end
+    // To work with the interval tree, and overlap functions,
+    // which need access to "start" and "end"
+    alias target this;
+    //alias start = target.start;   // fails from outside: Error: need this for start of type int
+    //alias end = target.end;       // fails from outside: Error: need this for end of type int
 
-    // To work with the interval tree, and overlap functions
-    alias start = tstart;
-    alias end = tend;
-
-    int delta;  /// fixed offset from tstart->qstart  == qstart - tstart (same for end as intervals must be same len)
+    int delta;  /// fixed offset from target.start->query.start  == query.start - target.start (same for end as intervals must be same len)
 
     /// Overload <, <=, >, >= for ChainLink/ChainLin; compare query
 	@nogc int opCmp(ref const ChainLink other) const nothrow
 	{
 		// Intervals from different contigs are incomparable
         // TODO: or are they???
-		assert(this.tcontig == other.tcontig);	// formerly return 0, but implies equality, leads to "duplicate insert" bug when using std.container.rbtree
+		assert(this.target.contig == other.target.contig);	// formerly return 0, but implies equality, leads to "duplicate insert" bug when using std.container.rbtree
 		
 		if (this.start < other.start) return -1;
 		else if(this.start > other.start) return 1;
@@ -95,18 +90,18 @@ struct ChainLink
 	string toString() const
 	{
 		return format("%s:%d-%d → %s:%d-%d",
-                    this.tcontig, this.tstart, this.tend,
-                    this.qcontig, this.qstart, this.qend);
+                    this.target.contig, this.target.start, this.target.end,
+                    this.query.contig, this.query.start, this.query.end);
 	}
 
     invariant
     {
         // TODO: should we really allow start == end?
-        assert(this.tstart <= this.tend);
-        assert(this.qstart <= this.qend);
-        assert((this.qend - this.qstart) == (this.tend - this.tstart),
+        assert(this.target.start <= this.target.end);
+        assert(this.query.start <= this.query.end);
+        assert((this.query.end - this.query.start) == (this.target.end - this.target.start),
             "ChainLink intervals differ in length");
-        assert(this.delta == (this.qstart - this.tstart));
+        assert(this.delta == (this.query.start - this.target.start));
     }
 }
 unittest
@@ -211,13 +206,13 @@ struct Chain
             // set up ChainLink from alignement data line
             ChainLink* link = new ChainLink;
 
-            link.tcontig = this.targetName;
-            link.tstart = tFrom;
-            link.tend = tFrom + size;
+            link.target.contig = this.targetName;
+            link.target.start = tFrom;
+            link.target.end = tFrom + size;
 
-            link.qcontig = this.queryName;
-            link.qstart = qFrom;
-            link.qend = qFrom + size;
+            link.query.contig = this.queryName;
+            link.query.start = qFrom;
+            link.query.end = qFrom + size;
 
             link.delta = qFrom - tFrom;
 
@@ -397,7 +392,7 @@ struct ChainFile
             //TODO here is where we would want to report truncated interval
             // delta is the numeric offset from input to destination coordinates 
             ChainInterval ci = ChainInterval(
-                o.front().interval.qcontig,
+                o.front().interval.query.contig,
                 isect.start + o.front().interval.delta,
                 isect.end + o.front().interval.delta);
 
@@ -408,7 +403,7 @@ struct ChainFile
         {
             auto isect = o.map!(x => intersect(i, x.interval));
             auto ret = isect.map!(x => ChainInterval(
-                o.front().interval.qcontig,
+                o.front().interval.query.contig,
                 x.start + o.front().interval.delta,
                 x.end + o.front().interval.delta));
 

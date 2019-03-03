@@ -100,7 +100,13 @@ struct IntervalTreeNode(IntervalType)
 if (__traits(hasMember, IntervalType, "start") &&
     __traits(hasMember, IntervalType, "end"))
 {
-    alias key = interval.start;
+    //alias key = interval.start;   // no longer works with the embedded
+                                    // structs and chain of alias this
+    /// sort key
+    pragma(inline,true)
+    @property @nogc nothrow const
+    auto key() { return this.interval.start; }
+
     IntervalType interval;  /// must at a minimum include members start, end
     int max;    /// maximum in this $(I subtree)
 

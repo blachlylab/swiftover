@@ -4,6 +4,7 @@ import std.algorithm : splitter;
 import std.array : appender, join;
 import std.conv;
 import std.file;
+import std.range.primitives;
 import std.stdio;
 
 import swiftover.chain;
@@ -70,11 +71,25 @@ void liftBED(string chainfile, string infile, string outfile, string unmatched)
 
         // #matches
         auto ret = cf.lift(contig, start, end);
-        if (ret.length > 0)
+
+        if (ret.length == 0)
+            fu.writef("%s\n", fields.data.join("\t"));
+        else if (ret.length == 1)
         {
-            fields.data[0] = contig.dup;
-            fields.data[1] = start.text.dup;        // TODO benchmark vs .toChars.array
-            fields.data[2] = end.text.dup;          // TODO benchmark vs .toChars.array
+            fields.data[0] = ret.front().contig.dup;    
+            fields.data[1] = ret.front().start.text.dup;    // TODO benchmark vs .toChars.array
+            fields.data[2] = ret.front().end.text.dup;  // TODO benchmark vs .toChars.array
+            fo.writef("%s\n", fields.data.join("\t"));
+        }
+        else    // unrolled to skip loop setup in case ret.len == 1
+        {
+            foreach(ci; ret)    //chaininterval in return
+            {
+                fields.data[0] = ci.contig.dup;    
+                fields.data[1] = ci.start.text.dup;    // TODO benchmark vs .toChars.array
+                fields.data[2] = ci.end.text.dup;  // TODO benchmark vs .toChars.array
+                fo.writef("%s\n", fields.data.join("\t"));
+            }
         }
 
         debug
@@ -86,11 +101,5 @@ void liftBED(string chainfile, string infile, string outfile, string unmatched)
                 hts_log_debug(__FUNCTION__, line.to!string);
             }
         }
-
-        if (ret.length == 0)
-            fu.writef("%s\n", fields.data.join("\t"));
-        else if (ret.length == 1)
-        // WIP TODO
-            fo.writef("%s\n", fields.data.join("\t"));
     }
 }

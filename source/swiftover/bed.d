@@ -109,11 +109,41 @@ void liftBED(string chainfile, string infile, string outfile, string unmatched)
             fu.writef("%s\n", fields.data.join("\t"));
         else if (ret.length == 1)
         {
+            int thickStartOffset, thickSize;
+
+            // Work on thickStart(col 7)/thickEnd(col 8) comes first because we need original start/End values
+            if (numf >= 8) {
+                if (fields.data[6] != fields.data[7]) {
+                    // Because thickStart/thickEnd must lie within the bounds [col2,col3)
+                    // we can save a costly extra lookup to the IntervalTree
+                    thickStartOffset = fields.data[6].to!int -
+                                            fields.data[1].to!int;
+                    thickSize = fields.data[7].to!int -
+                                            thickStartOffset;
+                }
+            }
+
             fields.data[0] = ret.front().contig.dup;    
             fields.data[1] = ret.front().start.text.dup;    // TODO benchmark vs .toChars.array
             fields.data[2] = ret.front().end.text.dup;  // TODO benchmark vs .toChars.array
             
+            // BED col 6: strand
             if (numf >= 6) fields.data[5][0] = STRAND_TABLE[ fields.data[5][0] + ret.front().invertStrand ];
+
+            // BED col 7: thickStart
+            // BED col 8: thickEnd
+            if (numf >= 8) {
+                // UCSC: "When there is no thick part, thickStart and thickEnd are usually set to the chromStart position."
+                if (fields.data[6] == fields.data[7]) {
+                    fields.data[6] = fields.data[1];
+                    fields.data[7] = fields.data[1];
+                }
+                else {
+                    // WIP thickstart/thickend
+                    // TODO perhaps this is not possible without the delta
+                    // and I should be workign with ChainLink after all?
+                }
+            }
 
             fo.writef("%s\n", fields.data.join("\t"));
         }

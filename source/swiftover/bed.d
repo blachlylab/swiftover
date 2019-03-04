@@ -9,6 +9,37 @@ import std.stdio;
 
 import swiftover.chain;
 
+/**
+    Lookup table for strand (+, -) inversion
+
+    '+' == 0x2B
+    '-' == 0x2D
+
+    By indexing into table the sum of
+    bool:invertStrand and char:strand
+    we obtain the new strand char.
+
+    33d == '!', to clue me in that something went wrong
+*/
+static char[256] STRAND_TABLE = [
+    33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 
+    33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 
+    33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, '+', '-', '-', '+', 33, 
+    33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 
+    33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 
+    33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 
+    33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 
+    33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 
+    33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 
+    33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 
+    33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 
+    33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 
+    33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 
+    33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 
+    33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 
+    33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 
+];
+
 /** Lift rows of infile to outfile using liftover chains in chainfile
 
 /// BED is zero-based, half-open
@@ -65,11 +96,13 @@ void liftBED(string chainfile, string infile, string outfile, string unmatched)
         fields.clear();
         fields.put( line.splitter() );
 
+        const auto numf = fields.data.length;
+
         string contig = fields.data[0].idup;
         int start = fields.data[1].to!int;
         int end = fields.data[2].to!int;
 
-        // #matches
+        // array (TODO: range) of matches as ChainInterval(s)
         auto ret = cf.lift(contig, start, end);
 
         if (ret.length == 0)
@@ -79,6 +112,10 @@ void liftBED(string chainfile, string infile, string outfile, string unmatched)
             fields.data[0] = ret.front().contig.dup;    
             fields.data[1] = ret.front().start.text.dup;    // TODO benchmark vs .toChars.array
             fields.data[2] = ret.front().end.text.dup;  // TODO benchmark vs .toChars.array
+            
+            //if (numf >= 6) fields.data[5][0] = ret.front().strand;
+            ////if (numf >= 6) fields.data[5][0] = STRAND_TABLE[ ret.front().strand + ret.front().invertStrand ];
+
             fo.writef("%s\n", fields.data.join("\t"));
         }
         else    // unrolled to skip loop setup in case ret.len == 1
@@ -88,6 +125,10 @@ void liftBED(string chainfile, string infile, string outfile, string unmatched)
                 fields.data[0] = ci.contig.dup;    
                 fields.data[1] = ci.start.text.dup;    // TODO benchmark vs .toChars.array
                 fields.data[2] = ci.end.text.dup;  // TODO benchmark vs .toChars.array
+                
+                //if (numf >= 6) fields.data[5][0] = ret.front().strand;
+                ////if (numf >= 6) fields.data[5][0] = STRAND_TABLE[ ret.front().strand + ret.front().invertStrand ];
+                
                 fo.writef("%s\n", fields.data.join("\t"));
             }
         }

@@ -15,12 +15,20 @@ import intervaltree.splaytree;
 
 import dhtslib.htslib.hts_log;
 
+/// ASCII valued to speed assignment and cmp
+enum STRAND : ubyte
+{
+    PLUS = '+',
+    MINUS = '-'
+}
+
 /// Zero-based, half-open
 struct ChainInterval
 {
     string contig;  /// whatever
     int start;      /// whatever
     int end;        /// whatever
+    STRAND strand;  /// + or -
 
     /// This constructor necessary to allow construction compat with SplayTree::BasicInterval
     this(int start, int end)
@@ -34,7 +42,16 @@ struct ChainInterval
         this.contig = contig;
         this.start = start;
         this.end = end;
-    } 
+    }
+    /// ditto
+    this(string contig, int start, int end, STRAND strand)
+    {
+        this.contig = contig;
+        this.start = start;
+        this.end = end;
+        this.strand = strand;
+    }
+
 
     string toString() const
     {
@@ -56,6 +73,8 @@ struct ChainLink
     // target and query intervals in 1:1 bijective relationship
     ChainInterval target;   /// Target (reference)
     ChainInterval query;    /// Query (destination)
+
+    bool invertStrand;      /// true iff target.strand != query.strand;
 
     // To work with the interval tree, and overlap functions,
     // which need access to "start" and "end"
@@ -86,8 +105,8 @@ struct ChainLink
 		else return 0;
 	}
 
-    // Todo, figure out if we can look up the contig id -> string mapping (static member map?)
-	string toString() const
+	// TODO print strand?
+    string toString() const
 	{
 		return format("%s:%d-%d → %s:%d-%d",
                     this.target.contig, this.target.start, this.target.end,
@@ -102,6 +121,9 @@ struct ChainLink
         assert((this.query.end - this.query.start) == (this.target.end - this.target.start),
             "ChainLink intervals differ in length");
         assert(this.delta == (this.query.start - this.target.start));
+
+        if (this.target.strand != this.query.strand) assert(this.invertStrand, "invertStrand error");
+        else assert(!this.invertStrand, "invertStrand error");
     }
 }
 unittest
@@ -149,6 +171,8 @@ struct Chain
 
 	int id;             /// chain id
 
+    bool invertStrand;  /// whether the strand in target and query differ
+
 	ChainLink*[] links;  /// query and target intervals in 1:1 bijective relationship
 
     static auto hfields = appender!(char[][]);  /// header fields; statically allocated to save GC allocations
@@ -182,6 +206,7 @@ struct Chain
 
         this.id = this.hfields.data[12].to!int;
         
+        if (this.targetStrand != this.queryStrand) this.invertStrand = true;
 
         /*  Alignment data lines:
             size dt dq
@@ -209,12 +234,16 @@ struct Chain
             link.target.contig = this.targetName;
             link.target.start = tFrom;
             link.target.end = tFrom + size;
+            link.target.strand = cast(STRAND) this.targetStrand;
 
             link.query.contig = this.queryName;
             link.query.start = qFrom;
             link.query.end = qFrom + size;
+            link.query.strand = cast(STRAND) this.queryStrand;
 
             link.delta = qFrom - tFrom;
+
+            link.invertStrand = this.invertStrand;
 
             if(this.dfields.data.length == 1)    // last block in chain
                 done = true;
@@ -361,7 +390,7 @@ struct ChainFile
 
         TODO: error handling (at cost of speed)
 
-        Returns:    Number of matches
+        Returns:    array (TODO, range) of ChainInterval
     */
     ChainInterval[] lift(string contig, int start, int end)
     {
@@ -390,13 +419,16 @@ struct ChainFile
             // intersect makes the interval comply with bounds of chain link
             const auto isect = intersect(i, o.front().interval);
             //TODO here is where we would want to report truncated interval
+            // TODO refactor , remove ChainInterval and return ChainLink once more
+            //  to avoid extra object construction
             // delta is the numeric offset from input to destination coordinates 
             ChainInterval ci = ChainInterval(
                 o.front().interval.query.contig,
                 isect.start + o.front().interval.delta,
-                isect.end + o.front().interval.delta);
+                isect.end + o.front().interval.delta,
+                o.front().interval.query.strand);
 
-            debug if(isect.start + o.front().interval.delta == 248458169) hts_log_debug(__FUNCTION__, format("%s", o.front().interval));
+            debug if(isect.start + o.front().interval.delta == 248_458_169) hts_log_debug(__FUNCTION__, format("%s", o.front().interval));
             return [ci];
         }
         else    // TODO optimize; return Range
@@ -405,7 +437,8 @@ struct ChainFile
             auto ret = isect.map!(x => ChainInterval(
                 o.front().interval.query.contig,
                 x.start + o.front().interval.delta,
-                x.end + o.front().interval.delta));
+                x.end + o.front().interval.delta,
+                o.front().interval.query.strand));
 
             return array(ret);
         }

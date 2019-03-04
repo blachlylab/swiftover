@@ -29,6 +29,7 @@ struct ChainInterval
     int start;      /// whatever
     int end;        /// whatever
     STRAND strand;  /// + or -
+    bool invertStrand;  /// whether this interval, relative to another, has opposite-strandedness
 
     /// This constructor necessary to allow construction compat with SplayTree::BasicInterval
     this(int start, int end)
@@ -44,12 +45,13 @@ struct ChainInterval
         this.end = end;
     }
     /// ditto
-    this(string contig, int start, int end, STRAND strand)
+    this(string contig, int start, int end, STRAND strand, bool invert = false)
     {
         this.contig = contig;
         this.start = start;
         this.end = end;
         this.strand = strand;
+        this.invertStrand = invert;
     }
 
 
@@ -426,7 +428,8 @@ struct ChainFile
                 o.front().interval.query.contig,
                 isect.start + o.front().interval.delta,
                 isect.end + o.front().interval.delta,
-                o.front().interval.query.strand);
+                o.front().interval.query.strand,
+                o.front().interval.invertStrand);
 
             debug if(isect.start + o.front().interval.delta == 248_458_169) hts_log_debug(__FUNCTION__, format("%s", o.front().interval));
             return [ci];
@@ -438,7 +441,8 @@ struct ChainFile
                 o.front().interval.query.contig,
                 x.start + o.front().interval.delta,
                 x.end + o.front().interval.delta,
-                o.front().interval.query.strand));
+                o.front().interval.query.strand,
+                o.front().interval.invertStrand));
 
             return array(ret);
         }

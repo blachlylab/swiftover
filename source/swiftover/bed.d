@@ -113,8 +113,7 @@ void liftBED(string chainfile, string infile, string outfile, string unmatched)
             fields.data[1] = ret.front().start.text.dup;    // TODO benchmark vs .toChars.array
             fields.data[2] = ret.front().end.text.dup;  // TODO benchmark vs .toChars.array
             
-            //if (numf >= 6) fields.data[5][0] = ret.front().strand;
-            ////if (numf >= 6) fields.data[5][0] = STRAND_TABLE[ ret.front().strand + ret.front().invertStrand ];
+            if (numf >= 6) fields.data[5][0] = STRAND_TABLE[ fields.data[5][0] + ret.front().invertStrand ];
 
             fo.writef("%s\n", fields.data.join("\t"));
         }
@@ -125,10 +124,10 @@ void liftBED(string chainfile, string infile, string outfile, string unmatched)
                 fields.data[0] = ci.contig.dup;    
                 fields.data[1] = ci.start.text.dup;    // TODO benchmark vs .toChars.array
                 fields.data[2] = ci.end.text.dup;  // TODO benchmark vs .toChars.array
-                
-                //if (numf >= 6) fields.data[5][0] = ret.front().strand;
-                ////if (numf >= 6) fields.data[5][0] = STRAND_TABLE[ ret.front().strand + ret.front().invertStrand ];
-                
+
+                // TODO: in all likelihood, this could be pulled out of the foreach                
+                if (numf >= 6) fields.data[5][0] = STRAND_TABLE[ fields.data[5][0] + ci.invertStrand ];                
+
                 fo.writef("%s\n", fields.data.join("\t"));
             }
         }

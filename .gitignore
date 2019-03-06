@@ -14,6 +14,8 @@
 # Executables
 *.exe
 /liftOver
+/liftOverMerge
+/liftUp
 /swiftover
 /swiftover-test-library
 

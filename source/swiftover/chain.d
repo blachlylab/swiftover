@@ -241,6 +241,7 @@ struct Chain
             // "When the strand value is "-", position coordinates
             // are listed in terms of the reverse-complemented sequence."
             // (https://genome.ucsc.edu/goldenpath/help/chain.html)
+            // TODO, this could be sped up by precomputing some values outside the foreach
             if(this.queryStrand == '+') {
                 link.query.contig = this.queryName;
                 link.query.start = qFrom;

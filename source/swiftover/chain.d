@@ -392,66 +392,74 @@ struct ChainFile
 
         TODO: error handling (at cost of speed)
 
-        Returns:    array (TODO, range) of ChainInterval
+        Returns:    array (TODO, range) of ChainLink
+                    Initially was ChainLink, then ChainInterval, then ChainLink again
+                    because we need strandInvert *and* delta *and* source/dest
     */
-    ChainInterval[] lift(string contig, int start, int end)
+    ChainLink[] lift(string contig, int start, int end)
     {
         auto i = BasicInterval(start, end);
         auto o = this.chainsByContig[contig].findOverlapsWith(i);   // returns Node*(s)
 
-        debug { // marked as debug because in hot code path
-            foreach(x; o) {
-                hts_log_trace(__FUNCTION__, format("%s", *x));
-            }
-        }
+        // marked as debug because in hot code path
+        debug foreach(x; o) hts_log_trace(__FUNCTION__, format("%s", *x));
 
         if (o.length == 0)  // no match
         {
             debug hts_log_trace(__FUNCTION__, "No match to interval");
 
             // -O3 will elide the stack alloc, thanks godbolt.org !
-            ChainInterval[] ret;
+            ChainLink[] ret;
             return ret;
         }
         else if (o.length == 1) // one match
         {
-            debug hts_log_trace(__FUNCTION__, format("Basic interval: %s | overlap interval: %s | delta %d", i,
-                o.front().interval, o.front().interval.delta));
+            debug hts_log_trace(__FUNCTION__, format("Basic interval: %s | overlap interval: %s | delta %d",
+                i, o.front().interval, o.front().interval.delta));
 
-            // intersect makes the interval comply with bounds of chain link
-            const auto isect = intersect(i, o.front().interval);
+            // intersect makes the chain link comply with bounds of interval
+            const auto isect = o.front().interval.intersect(i);
             //TODO here is where we would want to report truncated interval
-            // TODO refactor , remove ChainInterval and return ChainLink once more
-            //  to avoid extra object construction
-            // delta is the numeric offset from input to destination coordinates 
-            ChainInterval ci = ChainInterval(
-                o.front().interval.query.contig,
-                isect.start + o.front().interval.delta,
-                isect.end + o.front().interval.delta,
-                o.front().interval.query.strand,
-                o.front().interval.invertStrand);
 
-            debug if(isect.start + o.front().interval.delta == 248_458_169) hts_log_debug(__FUNCTION__, format("%s", o.front().interval));
-            return [ci];
+            debug if(isect.start + o.front().interval.delta == 248_458_169)
+                hts_log_debug(__FUNCTION__, format("%s", o.front().interval));
+
+            return [isect];
         }
         else    // TODO optimize; return Range
         {
-            auto isect = o.map!(x => intersect(i, x.interval));
-            auto ret = isect.map!(x => ChainInterval(
-                o.front().interval.query.contig,
-                x.start + o.front().interval.delta,
-                x.end + o.front().interval.delta,
-                o.front().interval.query.strand,
-                o.front().interval.invertStrand));
+            auto isect = o.map!(x => x.interval.intersect(i));
 
-            return array(ret);
+            return array(isect);
         }
     }
 }
 
-/// return the intersection of two intervals
-/// NOTE: this requires the first two elements be (start, end) or have ctor(start, end)
+/// return the intersection of a ChainLink with an interval
+/// NOTE: this requires the first two elements of InteravalType
+/// be (start, end) or have ctor(start, end)
 /// TODO: error handling (at cost of speed)
+pragma(inline, true)
+ChainLink intersect(IntervalType)(ChainLink int1, IntervalType int2)
+if (__traits(hasMember, IntervalType, "start") &&
+    __traits(hasMember, IntervalType, "end"))
+{
+    // Trimming is "inwards", i.e., ===== -> -===-
+    const auto trimmedStart = max(int1.start, int2.start);
+    const auto trimmedEnd   = min(int1.end,   int2.end);
+
+    const auto startDiff = trimmedStart - int1.start;
+    const auto endDiff   = int1.end - trimmedEnd;
+
+    // TODO this will need a small rewrite if I simplify ChainLink
+    return ChainLink(
+            ChainInterval(int1.target.contig, trimmedStart, trimmedEnd),
+            ChainInterval(int1.query.contig,  int1.query.start + startDiff,
+                                            int1.query.end - endDiff),
+            int1.invertStrand,  // invertStrand
+            int1.delta);        // delta
+}
+/*
 pragma(inline, true)
 @nogc nothrow
 IntervalType intersect(IntervalType)(IntervalType int1, IntervalType int2)
@@ -478,3 +486,4 @@ if (!is(IntervalType1 == IntervalType2) &&
         min(int1.end, int2.end)
     );
 }
+*/

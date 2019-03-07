@@ -238,10 +238,20 @@ struct Chain
             link.target.end = tFrom + size;
             link.target.strand = cast(STRAND) this.targetStrand;
 
-            link.query.contig = this.queryName;
-            link.query.start = qFrom;
-            link.query.end = qFrom + size;
-            link.query.strand = cast(STRAND) this.queryStrand;
+            // "When the strand value is "-", position coordinates
+            // are listed in terms of the reverse-complemented sequence."
+            // (https://genome.ucsc.edu/goldenpath/help/chain.html)
+            if(this.queryStrand == '+') {
+                link.query.contig = this.queryName;
+                link.query.start = qFrom;
+                link.query.end = (qFrom + size);
+                link.query.strand = cast(STRAND) this.queryStrand;
+            } else {
+                link.query.contig = this.queryName;
+                link.query.end = this.querySize - qFrom;
+                link.query.start = this.querySize - (qFrom + size);
+                link.query.strand = cast(STRAND) this.queryStrand;
+            }
 
             link.delta = qFrom - tFrom;
 

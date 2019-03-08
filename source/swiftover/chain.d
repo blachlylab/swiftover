@@ -29,7 +29,6 @@ struct ChainInterval
     int start;      /// whatever
     int end;        /// whatever
     STRAND strand;  /// + or -
-    bool invertStrand;  /// whether this interval, relative to another, has opposite-strandedness
 
     /// This constructor necessary to allow construction compat with SplayTree::BasicInterval
     this(int start, int end)
@@ -45,13 +44,12 @@ struct ChainInterval
         this.end = end;
     }
     /// ditto
-    this(string contig, int start, int end, STRAND strand, bool invert = false)
+    this(string contig, int start, int end, STRAND strand)
     {
         this.contig = contig;
         this.start = start;
         this.end = end;
         this.strand = strand;
-        this.invertStrand = invert;
     }
 
 

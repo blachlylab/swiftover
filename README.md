@@ -23,6 +23,9 @@ Swiftover needs uncompressed chain files.
 
 All BED formats supported, but columns  beyond the first three (i.e., strand, thickStart, thickStop) are not yet updated.
 
+*BUGS AND CAVEATS:* Records that lift over into multiple records in the destination
+build may appear in unsorted order.
+
 ### VCF
 
 _WIP_

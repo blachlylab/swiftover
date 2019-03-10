@@ -121,8 +121,10 @@ struct ChainLink
             "ChainLink intervals differ in length");
         assert(this.delta == (this.query.start - this.target.start));
 
-        if (this.target.strand != this.query.strand) assert(this.invertStrand, "invertStrand error");
-        else assert(!this.invertStrand, "invertStrand error");
+        if (this.target.strand != this.query.strand)
+            assert(this.invertStrand, "invertStrand error");
+        else 
+            assert(!this.invertStrand, "invertStrand error");
     }
 }
 unittest
@@ -244,15 +246,14 @@ struct Chain
                 link.query.start = qFrom;
                 link.query.end = (qFrom + size);
                 link.query.strand = cast(STRAND) this.queryStrand;
+                link.delta = qFrom - tFrom;
             } else {
                 link.query.contig = this.queryName;
                 link.query.end = this.querySize - qFrom;
                 link.query.start = this.querySize - (qFrom + size);
                 link.query.strand = cast(STRAND) this.queryStrand;
+                link.delta = link.query.start - tFrom;
             }
-
-            link.delta = qFrom - tFrom;
-
             link.invertStrand = this.invertStrand;
 
             if(this.dfields.data.length == 1)    // last block in chain
@@ -462,9 +463,10 @@ if (__traits(hasMember, IntervalType, "start") &&
 
     // TODO this will need a small rewrite if I simplify ChainLink
     return ChainLink(
-            ChainInterval(int1.target.contig, trimmedStart, trimmedEnd),
+            ChainInterval(int1.target.contig, trimmedStart, trimmedEnd, int1.target.strand),
             ChainInterval(int1.query.contig,  int1.query.start + startDiff,
-                                            int1.query.end - endDiff),
+                                            int1.query.end - endDiff,
+                                            int1.query.strand),
             int1.invertStrand,  // invertStrand
             int1.delta);        // delta
 }

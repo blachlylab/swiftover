@@ -155,15 +155,44 @@ void liftBED(string chainfile, string infile, string outfile, string unmatched)
         {
             foreach(ci; trimmedLinks)    //chaininterval in return
             {
+                int thickStartOffset, thickSize;
+
                 fields.data[0] = ci.qContig.dup;
                 start = ci.qStart;
                 end   = ci.qEnd;
-                orderStartEnd(start, end);              // if invert, start > end, so swap
-                fields.data[1] = start.toChars.array;
-                fields.data[2] = end.toChars.array;
 
-                // TODO: in all likelihood, this could be pulled out of the foreach                
-                if (numf >= 6) fields.data[5][0] = STRAND_TABLE[ fields.data[5][0] + ci.invert ];                
+                // BED col 7 (idx 6): thickStart
+                // BED col 8 (idx 7): thickEnd
+                // Work on thickStart(col 7)/thickEnd(col 8) comes first because we need original start/End values
+                if (numf >= 8) {
+                    // UCSC: "When there is no thick part, thickStart and thickEnd are usually set to the chromStart position."
+                    if (fields.data[6] == fields.data[7]) {
+                        fields.data[6] = start.toChars.array;
+                        fields.data[7] = start.toChars.array;
+                    }
+                    else {
+                        // Because thickStart/thickEnd must lie within the bounds [col2,col3)
+                        // we can save a costly(???) extra lookup to the IntervalTree
+                        thickStartOffset = fields.data[6].to!int -
+                                                fields.data[1].to!int;
+                        thickSize = fields.data[7].to!int -
+                                                fields.data[6].to!int;
+
+                        auto trimmedThickStart = start + ci.invert * thickStartOffset;
+                        auto trimmedThickEnd   = trimmedThickStart + ci.invert * thickSize;
+                        orderStartEnd(trimmedThickStart, trimmedThickEnd);
+
+                        fields.data[6] = trimmedThickStart.toChars.array;
+                        fields.data[7] = trimmedThickEnd.toChars.array; 
+                    }
+                }
+
+                orderStartEnd(start, end);              // if invert, start > end, so swap
+                fields.data[1] = start.toChars.array;   // 67% time vs .text.dup;
+                fields.data[2] = end.toChars.array;
+                
+                // BED col 6: strand
+                if (numf >= 6) fields.data[5][0] = STRAND_TABLE[ fields.data[5][0] + ci.invert ];
 
                 fo.writef("%s\n", fields.data.join("\t"));
             }

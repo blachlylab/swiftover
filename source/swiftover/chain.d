@@ -105,12 +105,11 @@ struct ChainLink
 		else return 0;
 	}
 
-	// TODO print strand?
     string toString() const
 	{
-		return format("%s:%d-%d → %s:%d-%d",
-                    this.target.contig, this.target.start, this.target.end,
-                    this.query.contig, this.query.start, this.query.end);
+		return format("%s:%d-%d(%s) → %s:%d-%d(%s",
+                    this.target.contig, this.target.start, this.target.end, this.target.strand,
+                    this.query.contig, this.query.start, this.query.end, this.query.strand);
 	}
 
     invariant
@@ -319,7 +318,7 @@ unittest
 1334    2239    2239
 112";
 
-    auto c = Chain(data.splitter(newline));  // TODO, need to change this out for cross-platform \n\r \n \r splitter
+    auto c = Chain(data.splitter(newline));
 
     assert(c.links.length == 19,
         "Failure parsing chain data blocks into ChainLinks");
@@ -332,10 +331,11 @@ unittest
 /// Representation of UCSC-format liftover chain file, which contains multiple alignment/liftover chains
 struct ChainFile
 {
-    // TODO use build names
+    /+
     string sourceBuild; /// original assembly, e.g. hg19 in an hg19->GRCh38 liftover
     alias queryBuild = sourceBuild;
     string destBuild; /// destination assembly, e.g. GRCh38 in an hg19->GRCh38 liftover
+    +/
 
     private IntervalSplayTree!(ChainLink)*[string] chainsByContig; /// AA of contig:string -> Interval Tree
 
@@ -478,21 +478,6 @@ if (__traits(hasMember, "IntervalType", "start") &&
     return IntervalType(
         max(int1.start, int2.start),
         min(int1.end, int2.end)        
-    );
-}
-/// ditto
-pragma(inline, true)
-@nogc nothrow
-BasicInterval intersect(IntervalType1, IntervalType2)(IntervalType1 int1, IntervalType2 int2)
-if (!is(IntervalType1 == IntervalType2) &&
-    __traits(hasMember, IntervalType1, "start") &&
-    __traits(hasMember, IntervalType1, "end") &&
-    __traits(hasMember, IntervalType2, "start") &&
-    __traits(hasMember, IntervalType2, "end"))
-{
-    return BasicInterval(
-        max(int1.start, int2.start),
-        min(int1.end, int2.end)
     );
 }
 */

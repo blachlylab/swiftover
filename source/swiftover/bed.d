@@ -1,7 +1,7 @@
 module swiftover.bed;
 
 import std.algorithm : splitter;
-import std.array : appender, join;
+import std.array : appender, join, array;
 import std.conv;
 import std.file;
 import std.range.primitives;
@@ -124,8 +124,8 @@ void liftBED(string chainfile, string infile, string outfile, string unmatched)
             }
 
             fields.data[0] = ret.front().contig.dup;    
-            fields.data[1] = ret.front().start.text.dup;    // TODO benchmark vs .toChars.array
-            fields.data[2] = ret.front().end.text.dup;  // TODO benchmark vs .toChars.array
+            fields.data[1] = ret.front().start.toChars.array;   // 67% time vs .text.dup;
+            fields.data[2] = ret.front().end.toChars.array;
             
             // BED col 6: strand
             if (numf >= 6) fields.data[5][0] = STRAND_TABLE[ fields.data[5][0] + ret.front().invertStrand ];
@@ -152,8 +152,8 @@ void liftBED(string chainfile, string infile, string outfile, string unmatched)
             foreach(ci; ret)    //chaininterval in return
             {
                 fields.data[0] = ci.contig.dup;    
-                fields.data[1] = ci.start.text.dup;    // TODO benchmark vs .toChars.array
-                fields.data[2] = ci.end.text.dup;  // TODO benchmark vs .toChars.array
+                fields.data[1] = ci.start.toChars.array;
+                fields.data[2] = ci.end.toChars.array;
 
                 // TODO: in all likelihood, this could be pulled out of the foreach                
                 if (numf >= 6) fields.data[5][0] = STRAND_TABLE[ fields.data[5][0] + ci.invertStrand ];                

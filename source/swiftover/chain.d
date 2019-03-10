@@ -64,33 +64,74 @@ struct ChainInterval
     }
 }
 
-/// Represents a mapping from ChainInterval -> ChainInterval
-/// Beacuse this is what's stored in RBTree nodes,
-/// should also implement Interface Interval, but delegate to member 'query'
-/// (tree sorted by query, not target)
+/** Link between coordinate systems
+
+    Originally, contained two structs of type ChainInterval:
+    target, and query. Target represented source coordinates,
+    while query was destination coordinates. This is logically
+    easier to track, but together took 50 bytes, plus bool invertStrand
+    and int delta in ChainLink itself meant sizeof(ChainLink) == 55.
+    Goal is to get it <= 32 bytes so as to fit two ChainLink per cache line.
+
+    Without resorting to tricks like lookup tables for contig name,
+    the minimal dataset needed per ChainLink is:
+    int:target.start, 
+    int:target.end,
+    int:query.start,
+    ptr*2:query.contig,
+    byte:invert (-1 or +1),
+    which totals 29 bytes. Gives room to store 2* +,- if desired.
+
+    Because this is what's stored in interval tree node,
+    must implement Interface interval (if class) or at a minimum
+    have members start and end; delegate or alias these to target (src),
+    as tree is sorted by target (source coordinate system) not query. 
+    */
 struct ChainLink
 {
-    // target and query intervals in 1:1 bijective relationship
-    ChainInterval target;   /// Target (reference)
-    ChainInterval query;    /// Query (destination)
-
-    bool invertStrand;      /// true iff target.strand != query.strand;
+    // target and query intervals in 1:1 bijective relationship.
+    // len(target) == len(query)
+    int tStart; /// Target [start   -- Zero based closed start
+    int tEnd;   /// Target end)     -- Zero based open end
+    int qStart; /// Query [start
+    string qContig; /// Query contig
+    // TODO , should will it help to repack this with string(ptr) aligned at front of struct on 16/32 byte boundary?
+    
+    //NB this is confusingly namd ; do not if(invert) ! perhaps beter called 'strand'
+    byte invert;    /// i ∈ {-1, +1} where -1 => target/query on different strands; +1 => same strand
 
     // To work with the interval tree, and overlap functions,
     // which need access to "start" and "end"
-    alias target this;
-    //alias start = target.start;   // fails from outside: Error: need this for start of type int
-    //alias end = target.end;       // fails from outside: Error: need this for end of type int
+    alias start = tStart;
+    alias end = tEnd;
 
-    int delta;  /// fixed offset from target.start->query.start  == query.start - target.start (same for end as intervals must be same len)
+    /// Compute qEnd PRN
+    pragma(inline, true)
+    @nogc nothrow
+    @property
+    int qEnd() const
+    {
+        return this.qStart + (this.invert * (this.tEnd - this.tStart));
+    }
+
+    /// Compute size PRN
+    pragma(inline, true)
+    @nogc nothrow
+    @property
+    int size() const
+    {
+        return this.invert * (this.tEnd - this.tStart);
+    }
 
     /// Overload <, <=, >, >= for ChainLink/ChainLin; compare query
 	@nogc int opCmp(ref const ChainLink other) const nothrow
 	{
+        /+
 		// Intervals from different contigs are incomparable
         // TODO: or are they???
 		assert(this.target.contig == other.target.contig);	// formerly return 0, but implies equality, leads to "duplicate insert" bug when using std.container.rbtree
-		
+		+/
+
 		if (this.start < other.start) return -1;
 		else if(this.start > other.start) return 1;
 		else if(this.start == other.start && this.end < other.end) return -1;	// comes third as should be less common
@@ -107,36 +148,52 @@ struct ChainLink
 
     string toString() const
 	{
-		return format("%s:%d-%d(%s) → %s:%d-%d(%s",
-                    this.target.contig, this.target.start, this.target.end, this.target.strand,
-                    this.query.contig, this.query.start, this.query.end, this.query.strand);
+        static const char[3] strand_table = [ '-', '!', '+' ];
+
+        // Luckily, chain files always give source interval on +, so we don't need to store
+		return format("%s:%d-%d(+) → %s:%d-%d(%s)",
+                    "unk", this.tStart, this.tEnd,
+                    this.qContig, this.qStart, this.qStart + (this.tEnd - this.tStart),
+                        strand_table[this.invert + 1]);
 	}
 
     invariant
     {
-        // TODO: should we really allow start == end?
-        assert(this.target.start <= this.target.end);
-        assert(this.query.start <= this.query.end);
-        assert((this.query.end - this.query.start) == (this.target.end - this.target.start),
-            "ChainLink intervals differ in length");
-        assert(this.delta == (this.query.start - this.target.start));
+        // i ∈ {-1, +1} where -1 => target/query on different strands; +1 => same strand
+        assert(this.invert == -1 || this.invert == 1, "invert EINVAL");
 
-        if (this.target.strand != this.query.strand)
-            assert(this.invertStrand, "invertStrand error");
-        else 
-            assert(!this.invertStrand, "invertStrand error");
+        // Target always with respect to + strand and thus start < end
+        assert(this.tStart < this.tEnd);
+        // This may not be true for QUERY if on - strand
+        /+ cannot call qEnd() or .size() from invariant -- infinite loop
+        if(this.invert == 1)
+            assert(this.qStart < this.qEnd);
+        else if(this.invert == -1)
+            assert(this.qStart > this.qEnd);
+        else
+            assert(0);
+        
+        assert(this.size == (this.tEnd - this.tStart));
+        +/
     }
 }
 unittest
 {
-    const auto c1 = ChainLink( ChainInterval(1000, 2000), ChainInterval(10_000, 11_000), 9000);
-    const auto c2 = ChainLink( ChainInterval(1000, 3000), ChainInterval(10_000, 12_000), 9000);
-    const auto c3 = ChainLink( ChainInterval(1500, 2500), ChainInterval(10_500, 11_500), 9000);
-
+    const auto c1 = ChainLink(1000, 2000, 10_000, 1);
+    const auto c2 = ChainLink(1000, 3000, 10_000, 1);
+    const auto c3 = ChainLink(1500, 2500, 10_500, -1);
+    
     assert(c1 < c2, "ChainLink opCmp problem");
     assert(c2 < c3, "ChainLink opCmp problem");
     assert(c3 < 1501, "ChainLink opCmp problem");
     assert(c1 > 999, "ChainLink opCmp problem");
+
+    assert(c1.qEnd == 11_000);
+    assert(c2.qEnd == 12_000);
+    assert(c3.qEnd == 9_500);   // minus strand
+
+    assert(c1.size == 1000);
+    assert(c3.size == 1000);
 }
 
 /// The Chain type represents a UCSC chain object, including all
@@ -161,18 +218,19 @@ struct Chain
 	string targetName;  /// source build contig
 	int targetSize;     /// source build contig length
 	char targetStrand;	/// +,-
-	int targetStart;
-	int targetEnd;
+	int targetStart;    /// source target interval zero-based closed [start,
+	int targetEnd;      /// source target interval zero-based open ,end)
 	
 	string queryName;   /// destination build contig
 	int querySize;      /// destination build contig length
 	char queryStrand;   /// +,-
-	int queryStart;
-	int queryEnd;
+	int queryStart;     /// If - strand, COORDINATES ARE OF REVERSE COMPLEMENT (in chain file)
+	int queryEnd;       /// If - strand, COORDINATES ARE OF REVERSE COMPLEMENT (in chain file)
 
 	int id;             /// chain id
 
-    bool invertStrand;  /// whether the strand in target and query differ
+    //bool invertStrand;  /// whether the strand in target and query differ
+    byte invert;        /// i ∈ {-1, +1} where -1 => target/query on different strands; +1 => same strand
 
 	ChainLink*[] links;  /// query and target intervals in 1:1 bijective relationship
 
@@ -202,12 +260,25 @@ struct Chain
         this.queryName = this.hfields.data[7].idup;
         this.querySize = this.hfields.data[8].to!int;
         this.queryStrand = this.hfields.data[9][0];
-        this.queryStart = this.hfields.data[10].to!int;
-        this.queryEnd = this.hfields.data[11].to!int;
+        // "When the strand value is "-", position coordinates
+        // are listed in terms of the reverse-complemented sequence."
+        // (https://genome.ucsc.edu/goldenpath/help/chain.html)
+        if (this.queryStrand == '+')
+        {
+            this.queryStart = this.hfields.data[10].to!int;
+            this.queryEnd = this.hfields.data[11].to!int;
+        }
+        else
+        {
+            // in this case start > end
+            this.queryStart = this.querySize - this.hfields.data[10].to!int;
+            this.queryEnd = this.querySize - this.hfields.data[11].to!int;
+        }
 
         this.id = this.hfields.data[12].to!int;
         
-        if (this.targetStrand != this.queryStrand) this.invertStrand = true;
+        //if (this.targetStrand != this.queryStrand) this.invertStrand = true;
+        this.invert = (this.targetStrand == this.queryStrand) ? 1 : -1;
 
         /*  Alignment data lines:
             size dt dq
@@ -224,7 +295,7 @@ struct Chain
             if (line.length == 0) continue; // blank lines end a chain block
 
             this.dfields.clear();
-            this.dfields.put(line.splitter.map!(x => x.to!int));   // TODO: benchmark splitter() 
+            this.dfields.put(line.splitter.map!(x => x.to!int)); 
             
             immutable int size = this.dfields.data[0];
             // note that dt and dq are not present in the final row of a chain
@@ -232,11 +303,17 @@ struct Chain
             // set up ChainLink from alignement data line
             ChainLink* link = new ChainLink;
 
-            link.target.contig = this.targetName;
-            link.target.start = tFrom;
-            link.target.end = tFrom + size;
-            link.target.strand = cast(STRAND) this.targetStrand;
+            //link.target.contig = this.targetName;
+            link.tStart = tFrom;
+            link.tEnd = tFrom + size;
+            //link.target.strand = cast(STRAND) this.targetStrand;
 
+            link.qContig = this.queryName;
+            link.qStart = qFrom;
+            // link.qEnd a computed property
+
+            link.invert = this.invert;
+            /+            
             // "When the strand value is "-", position coordinates
             // are listed in terms of the reverse-complemented sequence."
             // (https://genome.ucsc.edu/goldenpath/help/chain.html)
@@ -255,6 +332,7 @@ struct Chain
                 link.delta = link.query.start - tFrom;
             }
             link.invertStrand = this.invertStrand;
+            +/
 
             if(this.dfields.data.length == 1)    // last block in chain
                 done = true;
@@ -266,7 +344,7 @@ struct Chain
                 immutable int dq = this.dfields.data[2];
 
                 tFrom += (size + dt);
-                qFrom += (size + dq);
+                qFrom += this.invert * (size + dq); // sub if on minus strand
             }
             else assert(0, "Unexpected length of alignment data line");
 
@@ -277,9 +355,10 @@ struct Chain
 
 	string toString() const
 	{
-		return format("%s:%d-%d → %s:%d-%d :: %d links", 
+		return format("chain %d :: %s:%d-%d → %s:%d-%d(%s) :: %d links",
+            this.id, 
 			this.targetName, this.targetStart, this.targetEnd,
-            this.queryName, this.queryStart, this.queryEnd,
+            this.queryName, this.queryStart, this.queryEnd, this.queryStrand,
             this.links.length);
 	}
 
@@ -293,7 +372,18 @@ struct Chain
         assert(this.queryName != "");
         assert(this.querySize > 0);
         assert(this.queryStrand == '+' || this.queryStrand == '-');
-        assert(this.queryStart < this.queryEnd);
+        if (this.queryStrand == '+')
+            assert(this.queryStart < this.queryEnd);
+        else
+            assert(this.queryStart > this.queryEnd);
+        
+        if (this.targetStrand == this.queryStrand)
+            assert(this.invert == 1);
+        else
+            assert(this.invert == -1);
+
+        // nonempty
+        assert(this.links.length > 0);
     }
 }
 unittest
@@ -406,7 +496,7 @@ struct ChainFile
                     Initially was ChainLink, then ChainInterval, then ChainLink again
                     because we need strandInvert *and* delta *and* source/dest
     */
-    ChainLink[] lift(string contig, int start, int end)
+    ChainLink[] lift(string contig, int start, int end) // can't be const method since findOverlapsWith mutates tree
     {
         auto i = BasicInterval(start, end);
         auto o = this.chainsByContig[contig].findOverlapsWith(i);   // returns Node*(s)
@@ -424,16 +514,16 @@ struct ChainFile
         }
         else if (o.length == 1) // one match
         {
-            debug hts_log_trace(__FUNCTION__, format("Basic interval: %s | overlap interval: %s | delta %d",
-                i, o.front().interval, o.front().interval.delta));
+            debug hts_log_trace(__FUNCTION__, "One match to interval");
 
             // intersect makes the chain link comply with bounds of interval
             const auto isect = o.front().interval.intersect(i);
             //TODO here is where we would want to report truncated interval
 
+            /+
             debug if(isect.start + o.front().interval.delta == 248_458_169)
                 hts_log_debug(__FUNCTION__, format("%s", o.front().interval));
-
+            +/
             return [isect];
         }
         else    // TODO optimize; return Range
@@ -445,12 +535,33 @@ struct ChainFile
     }
 }
 
+/// Return the intersection of a ChainLink with a generic interval
+/// Comparison and trimming is on + strand only, but does support
+/// ChainLink with query(dest) on the - strand
+pragma(inline, true)
+ChainLink intersect(IntervalType)(ChainLink link, const IntervalType other)
+if (__traits(hasMember, IntervalType, "start") &&
+    __traits(hasMember, IntervalType, "end"))
+{
+    // Trimming is "inwards", i.e., ===== -> -===-
+    const auto trimmedStart = max(link.start, other.start);
+    const auto trimmedEnd   = min(link.end,   other.end);
+
+    const auto delta = trimmedStart - link.start;
+    link.qStart += link.invert * delta;
+
+    link.tStart = trimmedStart;
+    link.tEnd   = trimmedEnd;
+
+    return link;
+}
+
 /// return the intersection of a ChainLink with an interval
 /// NOTE: this requires the first two elements of InteravalType
 /// be (start, end) or have ctor(start, end)
 /// TODO: error handling (at cost of speed)
 pragma(inline, true)
-ChainLink intersect(IntervalType)(ChainLink int1, IntervalType int2)
+ChainLink intersectX(IntervalType)(ChainLink int1, IntervalType int2)
 if (__traits(hasMember, IntervalType, "start") &&
     __traits(hasMember, IntervalType, "end"))
 {
@@ -483,3 +594,14 @@ if (__traits(hasMember, "IntervalType", "start") &&
     );
 }
 */
+
+/// swap start, end if start > end
+@safe
+@nogc nothrow
+void orderStartEnd(ref int start, ref int end)
+{
+    int s;
+    s = start;
+    start = min(start, end);
+    end = max(s, end);
+}

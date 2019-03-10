@@ -102,7 +102,7 @@ void liftBED(string chainfile, string infile, string outfile, string unmatched)
         int start = fields.data[1].to!int;
         int end = fields.data[2].to!int;
 
-        // array (TODO: range) of matches as ChainInterval(s)
+        // array (TODO: range) of matches as ChainLink(s)
         auto ret = cf.lift(contig, start, end);
 
         if (ret.length == 0)
@@ -124,8 +124,8 @@ void liftBED(string chainfile, string infile, string outfile, string unmatched)
             }
 
             fields.data[0] = ret.front().contig.dup;    
-            fields.data[1] = ret.front().start.toChars.array;   // 67% time vs .text.dup;
-            fields.data[2] = ret.front().end.toChars.array;
+            fields.data[1] = ret.front().query.start.toChars.array;   // 67% time vs .text.dup;
+            fields.data[2] = ret.front().query.end.toChars.array;
             
             // BED col 6: strand
             if (numf >= 6) fields.data[5][0] = STRAND_TABLE[ fields.data[5][0] + ret.front().invertStrand ];

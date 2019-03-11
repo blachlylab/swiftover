@@ -194,17 +194,18 @@ Node *kavl_find(const(Node) *root, const(Node) *x, out uint cnt) {
 }
 
 
-/// /* one rotation: (a,(b,c)q)p => ((a,b)p,c)q */ \
+/// /* one rotation: (a,(b,c)q)p => ((a,b)p,c)q */
 /// /* dir=0 to left; dir=1 to right */
-private T* kavl_rotate1(T)(T* p, int dir)
-{
-    int opp = 1 - dir; /* opposite direction */
-    T *q = p.__head.p[opp];
-    uint size_p = p.__head.size;
-    p.__head.size -= q.__head.size - kavl_size_child(__head, q, dir);
-    q.__head.size = size_p;
-    p.__head.p[opp] = q.__head.p[dir];
-    q.__head.p[dir] = p;
+pragma(inline, true)
+@safe @nogc nothrow
+private Node *kavl_rotate1(Node *p, DIR dir) { /* dir=0 to left; dir=1 to right */
+    const int opp = 1 - dir; /* opposite direction */
+    Node *q = p.p[opp];
+    const uint size_p = p.size;
+    p.size -= q.size - kavl_size_child(q, dir);
+    q.size = size_p;
+    p.p[opp] = q.p[dir];
+    q.p[dir] = p;
     return q;
 }
 

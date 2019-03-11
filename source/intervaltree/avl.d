@@ -195,10 +195,10 @@ Node *kavl_find(const(Node) *root, const(Node) *x, out uint cnt) {
 
 
 /// /* one rotation: (a,(b,c)q)p => ((a,b)p,c)q */
-/// /* dir=0 to left; dir=1 to right */
 pragma(inline, true)
 @safe @nogc nothrow
-private Node *kavl_rotate1(Node *p, DIR dir) { /* dir=0 to left; dir=1 to right */
+private
+Node *kavl_rotate1(Node *p, DIR dir) { /* dir=0 to left; dir=1 to right */
     const int opp = 1 - dir; /* opposite direction */
     Node *q = p.p[opp];
     const uint size_p = p.size;
@@ -210,24 +210,26 @@ private Node *kavl_rotate1(Node *p, DIR dir) { /* dir=0 to left; dir=1 to right 
 }
 
 /** two consecutive rotations: (a,((b,c)r,d)q)p => ((a,b)p,(c,d)q)r */
-/// /* dir=0 to left; dir=1 to right */
-private T* kavl_rotate2(T)(T *p, int dir)
-{
-    int b1, opp = 1 - dir;
-    T* q = p.__head.p[opp], r = q.__head.p[dir];
-    uint size_x_dir = kavl_size_child(__head, r, dir);
-    r.__head.size = p.__head.size;
-    p.__head.size -= q.__head.size - size_x_dir;
-    q.__head.size -= size_x_dir + 1;
-    p.__head.p[opp] = r.__head.p[dir];
-    r.__head.p[dir] = p;
-    q.__head.p[dir] = r.__head.p[opp];
-    r.__head.p[opp] = q;
-    b1 = dir == 0? +1 : -1;
-    if (r.__head.balance == b1) q.__head.balance = 0, p.__head.balance = -b1;
-    else if (r.__head.balance == 0) q.__head.balance = p.__head.balance = 0;
-    else q.__head.balance = b1, p.__head.balance = 0;
-    r.__head.balance = 0;
+pragma(inline, true)
+@safe @nogc nothrow
+private
+Node *kavl_rotate2(Node *p, DIR dir) {
+    int b1;
+    const int opp = 1 - dir;
+    Node *q = p.p[opp], *r = q.p[dir];
+    const uint size_x_dir = kavl_size_child(r, dir);
+    r.size = p.size;
+    p.size -= q.size - size_x_dir;
+    q.size -= size_x_dir + 1;
+    p.p[opp] = r.p[dir];
+    r.p[dir] = p;
+    q.p[dir] = r.p[opp];
+    r.p[opp] = q;
+    b1 = dir == 0 ? +1 : -1;
+    if (r.balance == b1) q.balance = 0, p.balance = -b1;
+    else if (r.balance == 0) q.balance = p.balance = 0;
+    else q.balance = b1, p.balance = 0;
+    r.balance = 0;
     return r;
 }
 

@@ -244,9 +244,6 @@ Node *kavl_rotate2(Node *p, int dir) {
  *
  * @return _x_ if not present in the tree, or the node equal to x.
  */
-//#define kavl_insert(suf, proot, x, cnt) kavl_insert_##suf(proot, x, cnt)
-
-//#define __KAVL_INSERT(suf, __scope, __type, __head, __cmp)
 @safe @nogc nothrow
 Node *kavl_insert(Node **root_, Node *x, out uint cnt)
 {
@@ -311,87 +308,89 @@ Node *kavl_insert(Node **root_, Node *x, out uint cnt)
 /+
 #define kavl_erase(suf, proot, x, cnt) kavl_erase_##suf(proot, x, cnt)
 #define kavl_erase_first(suf, proot) kavl_erase_##suf(proot, 0, 0)
-
-#define __KAVL_ERASE(suf, __scope, __type, __head, __cmp) \
-	__scope __type *kavl_erase_##suf(__type **root_, const __type *x, unsigned *cnt_) { \
-		__type *p, *path[KAVL_MAX_DEPTH], fake; \
-		unsigned char dir[KAVL_MAX_DEPTH]; \
-		int i, d = 0, cmp; \
-		unsigned cnt = 0; \
-		fake.__head.p[0] = *root_, fake.__head.p[1] = 0; \
-		if (cnt_) *cnt_ = 0; \
-		if (x) { \
-			for (cmp = -1, p = &fake; cmp; cmp = __cmp(x, p)) { \
-				int which = (cmp > 0); \
-				if (cmp > 0) cnt += kavl_size_child(__head, p, 0) + 1; \
-				dir[d] = which; \
-				path[d++] = p; \
-				p = p->__head.p[which]; \
-				if (p == 0) { \
-					if (cnt_) *cnt_ = 0; \
-					return 0; \
-				} \
-			} \
-			cnt += kavl_size_child(__head, p, 0) + 1; /* because p==x is not counted */ \
-		} else { \
-			for (p = &fake, cnt = 1; p; p = p->__head.p[0]) \
-				dir[d] = 0, path[d++] = p; \
-			p = path[--d]; \
-		} \
-		if (cnt_) *cnt_ = cnt; \
-		for (i = 1; i < d; ++i) --path[i]->__head.size; \
-		if (p->__head.p[1] == 0) { /* ((1,.)2,3)4 => (1,3)4; p=2 */ \
-			path[d-1]->__head.p[dir[d-1]] = p->__head.p[0]; \
-		} else { \
-			__type *q = p->__head.p[1]; \
-			if (q->__head.p[0] == 0) { /* ((1,2)3,4)5 => ((1)2,4)5; p=3 */ \
-				q->__head.p[0] = p->__head.p[0]; \
-				q->__head.balance = p->__head.balance; \
-				path[d-1]->__head.p[dir[d-1]] = q; \
-				path[d] = q, dir[d++] = 1; \
-				q->__head.size = p->__head.size - 1; \
-			} else { /* ((1,((.,2)3,4)5)6,7)8 => ((1,(2,4)5)3,7)8; p=6 */ \
-				__type *r; \
-				int e = d++; /* backup _d_ */\
-				for (;;) { \
-					dir[d] = 0; \
-					path[d++] = q; \
-					r = q->__head.p[0]; \
-					if (r->__head.p[0] == 0) break; \
-					q = r; \
-				} \
-				r->__head.p[0] = p->__head.p[0]; \
-				q->__head.p[0] = r->__head.p[1]; \
-				r->__head.p[1] = p->__head.p[1]; \
-				r->__head.balance = p->__head.balance; \
-				path[e-1]->__head.p[dir[e-1]] = r; \
-				path[e] = r, dir[e] = 1; \
-				for (i = e + 1; i < d; ++i) --path[i]->__head.size; \
-				r->__head.size = p->__head.size - 1; \
-			} \
-		} \
-		while (--d > 0) { \
-			__type *q = path[d]; \
-			int which, other, b1 = 1, b2 = 2; \
-			which = dir[d], other = 1 - which; \
-			if (which) b1 = -b1, b2 = -b2; \
-			q->__head.balance += b1; \
-			if (q->__head.balance == b1) break; \
-			else if (q->__head.balance == b2) { \
-				__type *r = q->__head.p[other]; \
-				if (r->__head.balance == -b1) { \
-					path[d-1]->__head.p[dir[d-1]] = kavl_rotate2_##suf(q, which); \
-				} else { \
-					path[d-1]->__head.p[dir[d-1]] = kavl_rotate1_##suf(q, which); \
-					if (r->__head.balance == 0) { \
-						r->__head.balance = -b1; \
-						q->__head.balance = b1; \
-						break; \
-					} else r->__head.balance = q->__head.balance = 0; \
-				} \
-			} \
-		} \
-		*root_ = fake.__head.p[0]; \
-		return p; \
-	}
 +/
+@trusted    // cannot be @safe: takes &fake
+@nogc nothrow
+Node *kavl_erase(Node **root_, const(Node) *x, out uint cnt) {
+    Node* p;
+    Node*[KAVL_MAX_DEPTH] path;
+    Node fake;
+    ubyte[KAVL_MAX_DEPTH] dir;
+    int i, d = 0, cmp;
+    //unsigned cnt = 0;
+    fake.p[0] = *root_, fake.p[1] = null;
+    //if (cnt_) *cnt_ = 0;
+    if (x !is null) {
+        for (cmp = -1, p = &fake; cmp; cmp = (x < p)) {
+            const int which = (cmp > 0);
+            if (cmp > 0) cnt += kavl_size_child(p, DIR.LEFT) + 1;
+            dir[d] = which;
+            path[d++] = p;
+            p = p.p[which];
+            if (p is null) {
+                //if (cnt_) *cnt_ = 0;
+                return null;
+            }
+        }
+        cnt += kavl_size_child(p, DIR.LEFT) + 1; /* because p==x is not counted */
+    } else {
+        for (p = &fake, cnt = 1; p; p = p.p[DIR.LEFT])
+            dir[d] = 0, path[d++] = p;
+        p = path[--d];
+    }
+    //if (cnt_) *cnt_ = cnt;
+    for (i = 1; i < d; ++i) --path[i].size;
+    if (p.p[1] is null) { /* ((1,.)2,3)4 => (1,3)4; p=2 */
+        path[d-1].p[dir[d-1]] = p.p[0];
+    } else {
+        Node *q = p.p[DIR.RIGHT];
+        if (q.p[0] is null) { /* ((1,2)3,4)5 => ((1)2,4)5; p=3 */
+            q.p[0] = p.p[0];
+            q.balance = p.balance;
+            path[d-1].p[dir[d-1]] = q;
+            path[d] = q, dir[d++] = 1;
+            q.size = p.size - 1;
+        } else { /* ((1,((.,2)3,4)5)6,7)8 => ((1,(2,4)5)3,7)8; p=6 */
+            Node *r;
+            int e = d++; /* backup _d_ */
+            for (;;) {
+                dir[d] = 0;
+                path[d++] = q;
+                r = q.p[0];
+                if (r.p[0] is null) break;
+                q = r;
+            }
+            r.p[0] = p.p[0];
+            q.p[0] = r.p[1];
+            r.p[1] = p.p[1];
+            r.balance = p.balance;
+            path[e-1].p[dir[e-1]] = r;
+            path[e] = r, dir[e] = 1;
+            for (i = e + 1; i < d; ++i) --path[i].size;
+            r.size = p.size - 1;
+        }
+    }
+    while (--d > 0) {
+        Node *q = path[d];
+        int which, other, b1 = 1, b2 = 2;
+        which = dir[d], other = 1 - which;
+        if (which) b1 = -b1, b2 = -b2;
+        q.balance += b1;
+        if (q.balance == b1) break;
+        else if (q.balance == b2) {
+            Node *r = q.p[other];
+            if (r.balance == -b1) {
+                path[d-1].p[dir[d-1]] = kavl_rotate2(q, which);
+            } else {
+                path[d-1].p[dir[d-1]] = kavl_rotate1(q, which);
+                if (r.balance == 0) {
+                    r.balance = cast(byte) -b1;
+                    q.balance = cast(byte) b1;
+                    break;
+                } else r.balance = q.balance = 0;
+            }
+        }
+    }
+    *root_ = fake.p[0];
+    return p;
+}

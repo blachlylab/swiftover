@@ -182,7 +182,7 @@ Node *kavl_find(const(Node) *root, const(Node) *x, out uint cnt) {
     const(Node)* p = root;
     
     while (p !is null) {
-        const int cmp = (x< p);
+        const int cmp = (x < p);
         if (cmp >= 0) cnt += kavl_size_child(p, DIR.LEFT) + 1; // left tree plus self
 
         if (cmp < 0) p = p.p[DIR.LEFT];         // descend leftward
@@ -245,52 +245,58 @@ Node *kavl_rotate2(Node *p, DIR dir) {
  */
 //#define kavl_insert(suf, proot, x, cnt) kavl_insert_##suf(proot, x, cnt)
 
-///
-T* kavl_insert(T)(T **root, T *x, uint *cnt_)
+//#define __KAVL_INSERT(suf, __scope, __type, __head, __cmp)
+@safe @nogc nothrow
+Node *kavl_insert(Node **root_, Node *x, out uint cnt)
 {
+    
     char[KAVL_MAX_DEPTH] stack;
-    T*[KAVL_MAX_DEPTH] path;
-    T* bp, bq;
-    T* p, q, r = 0; /* _r_ is potentially the new root */
-    int i, which = 0, top, b1, path_len;
-    uint cnt = 0;
-    bp = *root, bq = 0;
+    Node*[KAVL_MAX_DEPTH] path;
 
+    Node* bp;
+    Node* bq;
+    Node* p;
+    Node* q;
+    Node* r = null; /* _r_ is potentially the new root */
+
+    int i, which = 0, top, b1, path_len;
+
+    bp = *root_, bq = 0;
     /* find the insertion location */
-    for (p = bp, q = bq, top = path_len = 0; p; q = p, p = p.__head.p[which]) {
-        int cmp = (x < p);
-        if (cmp >= 0) cnt += kavl_size_child(__head, p, 0) + 1;
+    for (p = bp, q = bq, top = path_len = 0; p; q = p, p = p.p[which]) {
+        const int cmp = (x < p);
+        if (cmp >= 0) cnt += kavl_size_child(p, 0) + 1;
         if (cmp == 0) {
-            if (cnt_) *cnt_ = cnt;
             return p;
         }
-        if (p.__head.balance != 0)
+        if (p.balance != 0)
             bq = q, bp = p, top = 0;
         stack[top++] = which = (cmp > 0);
         path[path_len++] = p;
     }
-    if (cnt_) *cnt_ = cnt;
-    x.__head.balance = 0, x.__head.size = 1, x.__head.p[0] = x.__head.p[1] = 0;
+
+    x.balance = 0, x.size = 1, x.p[0] = x.p[1] = 0;
     if (q == 0) *root_ = x;
-    else q.__head.p[which] = x;
+    else q.p[which] = x;
     if (bp == 0) return x;
-    for (i = 0; i < path_len; ++i) ++path[i].__head.size;
-    for (p = bp, top = 0; p != x; p = p.__head.p[stack[top]], ++top) /* update balance factors */
-        if (stack[top] == 0) --p.__head.balance;
-        else ++p.__head.balance;
-    if (bp.__head.balance > -2 && bp.__head.balance < 2) return x; /* no re-balance needed */
+    for (i = 0; i < path_len; ++i) ++path[i].size;
+    for (p = bp, top = 0; p != x; p = p.p[stack[top]], ++top) /* update balance factors */
+        if (stack[top] == 0) --p.balance;
+        else ++p.balance;
+    if (bp.balance > -2 && bp.balance < 2) return x; /* no re-balance needed */
     /* re-balance */
-    which = (bp.__head.balance < 0);
-    b1 = which == 0? +1 : -1;
-    q = bp.__head.p[1 - which];
-    if (q.__head.balance == b1) {
+    which = (bp.balance < 0);
+    b1 = which == 0 ? +1 : -1;
+    q = bp.p[1 - which];
+    if (q.balance == b1) {
         r = kavl_rotate1(bp, which);
-        q.__head.balance = bp.__head.balance = 0;
+        q.balance = bp.balance = 0;
     } else r = kavl_rotate2(bp, which);
     if (bq == 0) *root_ = r;
-    else bq.__head.p[bp != bq.__head.p[0]] = r;
+    else bq.p[bp != bq.p[0]] = r;
     return x;
 }
+
 
 /**
  * Delete a node from the tree

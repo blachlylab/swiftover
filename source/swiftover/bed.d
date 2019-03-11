@@ -1,6 +1,7 @@
 module swiftover.bed;
 
 import std.algorithm : splitter;
+import std.algorithm.sorting;
 import std.array : appender, join, array;
 import std.conv;
 import std.file;
@@ -110,13 +111,14 @@ void liftBED(string chainfile, string infile, string outfile, string unmatched)
             fu.writef("%s\n", fields.data.join("\t"));
         else
         {
-            foreach(ci; trimmedLinks)    //chaininterval in return
+            alias querySort = (x,y) => x.qStart < y.qStart;
+            foreach(link; sort!querySort(trimmedLinks))
             {
                 int thickStartOffset, thickSize;
 
-                fields.data[0] = ci.qContig.dup;
-                start = ci.qStart;
-                end   = ci.qEnd;
+                fields.data[0] = link.qContig.dup;
+                start = link.qStart;
+                end   = link.qEnd;
 
                 // BED col 7 (idx 6): thickStart
                 // BED col 8 (idx 7): thickEnd
@@ -135,8 +137,8 @@ void liftBED(string chainfile, string infile, string outfile, string unmatched)
                         thickSize = fields.data[7].to!int -
                                                 fields.data[6].to!int;
 
-                        auto trimmedThickStart = start + ci.invert * thickStartOffset;
-                        auto trimmedThickEnd   = trimmedThickStart + ci.invert * thickSize;
+                        auto trimmedThickStart = start + link.invert * thickStartOffset;
+                        auto trimmedThickEnd   = trimmedThickStart + link.invert * thickSize;
                         orderStartEnd(trimmedThickStart, trimmedThickEnd);
 
                         fields.data[6] = trimmedThickStart.toChars.array;
@@ -149,7 +151,7 @@ void liftBED(string chainfile, string infile, string outfile, string unmatched)
                 fields.data[2] = end.toChars.array;
                 
                 // BED col 6: strand
-                if (numf >= 6) fields.data[5][0] = STRAND_TABLE[ fields.data[5][0] + ci.invert ];
+                if (numf >= 6) fields.data[5][0] = STRAND_TABLE[ fields.data[5][0] + link.invert ];
 
                 fo.writef("%s\n", fields.data.join("\t"));
             }

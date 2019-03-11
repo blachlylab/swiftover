@@ -138,16 +138,32 @@ int main(void) {
 }
 */
 
+enum DIR : int
+{
+    LEFT = 0,
+    RIGHT = 1
+}
+
 ///
 enum KAVL_MAX_DEPTH = 64;
-/*
-#define kavl_size(head, p) ((p)? (p)->head.size : 0)
-#define kavl_size_child(head, q, i) ((q)->head.p[(i)]? (q)->head.p[(i)]->head.size : 0)
-*/
+
 ///
-struct kavl_head(T)
+pragma(inline, true)
+@safe @nogc nothrow
+auto kavl_size(T)(T* p) { return (p ? p.size : 0); }
+
+///
+pragma(inline, true)
+@safe @nogc nothrow
+auto kavl_size_child(T* q, DIR i) { return (q.p[i] ? q.p[i].size : 0); }
+
+///
+struct Node(T)
 {
-    T*[2] p;
+    T key;  /// sortable
+
+    /// below prev in ->head
+    Node*[2] p;
     char balance;   /// balance factor
     uint size;      /// #elements in subtree
 }
@@ -161,20 +177,22 @@ struct kavl_head(T)
  *
  * @return node equal to _x_ if present, or NULL if absent
  */
-T* kavl_find(T)(const T root, const(T*) x, uint *cnt_)
-{
-    const (T*) p = root;
-    uint cnt = 0;
-    while (p != 0) {
-        int cmp = (x < p);
-        if (cmp >= 0) cnt += kavl_size_child(__head, p, 0) + 1;
-        if (cmp < 0) p = p.__head.p[0];
-        else if (cmp > 0) p = p.__head.p[1];
+Node *kavl_find(const(Node) *root, const(Node) *x, out uint cnt) {
+
+    const(Node)* p = root;
+    
+    while (p !is null) {
+        const int cmp = (x< p);
+        if (cmp >= 0) cnt += kavl_size_child(p, DIR.LEFT) + 1; // left tree plus self
+
+        if (cmp < 0) p = p.p[DIR.LEFT];         // descend leftward
+        else if (cmp > 0) p = p.p[DIR.RIGHT];   // descend rightward
         else break;
     }
-    if (cnt_) *cnt_ = cnt;
+
     return p;
 }
+
 
 /// /* one rotation: (a,(b,c)q)p => ((a,b)p,c)q */ \
 /// /* dir=0 to left; dir=1 to right */
@@ -366,21 +384,26 @@ T* kavl_insert(T)(T **root, T *x, uint *cnt_)
 		*root_ = fake.__head.p[0]; \
 		return p; \
 	}
-
-#define kavl_free(__type, __head, __root, __free) do { \
-		__type *_p, *_q; \
-		for (_p = __root; _p; _p = _q) { \
-			if (_p->__head.p[0] == 0) { \
-				_q = _p->__head.p[1]; \
-				__free(_p); \
-			} else { \
-				_q = _p->__head.p[0]; \
-				_p->__head.p[0] = _q->__head.p[1]; \
-				_q->__head.p[1] = _p; \
-			} \
-		} \
-	} while (0)
-
++/
+/// free every node
+void kavl_free(T)(auto __head, auto __root, auto __free) 
+{
+    do {
+        T* _p;
+        T* _q;
+        for (_p = __root; _p; _p = _q) {
+            if (_p.__head.p[0] == 0) {
+                _q = _p.__head.p[1];
+                __free(_p);
+            } else {
+                _q = _p.__head.p[0];
+                _p.__head.p[0] = _q.__head.p[1];
+                _q.__head.p[1] = _p;
+            }
+        }
+    } while (0);
+}
+/+
 #define __KAVL_ITR(suf, __scope, __type, __head, __cmp) \
 	struct kavl_itr_##suf { \
 		const __type *stack[KAVL_MAX_DEPTH], **top, *right; /* _right_ points to the right child of *top */ \
@@ -410,21 +433,6 @@ T* kavl_insert(T)(T **root, T *x, uint *cnt_)
 			return 0; \
 		} else return 0; \
 	} \
-	__scope int kavl_itr_next_##suf(struct kavl_itr_##suf *itr) { \
-		for (;;) { \
-			const __type *p; \
-			for (p = itr->right, --itr->top; p; p = p->__head.p[0]) \
-				*++itr->top = p; \
-			if (itr->top < itr->stack) return 0; \
-			itr->right = (*itr->top)->__head.p[1]; \
-			return 1; \
-		} \
-	}
-
-
-
-
-#define kavl_itr_t(suf) struct kavl_itr_##suf
 
 /**
  * Place the iterator at the smallest object
@@ -447,6 +455,7 @@ T* kavl_insert(T)(T **root, T *x, uint *cnt_)
  *         larger than all objects in the tree
  */
 #define kavl_itr_find(suf, root, x, itr) kavl_itr_find_##suf(root, x, itr)
++/
 
 /**
  * Move to the next object in order
@@ -455,7 +464,16 @@ T* kavl_insert(T)(T **root, T *x, uint *cnt_)
  *
  * @return 1 if there is a next object; 0 otherwise
  */
-#define kavl_itr_next(suf, itr) kavl_itr_next_##suf(itr)
+int kavl_itr_next(T)(kavl_itr_t *itr) {
+    for (;;) {
+        const T *p;
+        for (p = itr.right, --itr.top; p; p = p.__head.p[0])
+            *++itr.top = p;
+        if (itr.top < itr.stack) return 0;
+        itr.right = (*itr.top).__head.p[1];
+        return 1;
+    }
+}
 
 /**
  * Return the pointer at the iterator
@@ -464,6 +482,9 @@ T* kavl_insert(T)(T **root, T *x, uint *cnt_)
  *
  * @return pointer if present; NULL otherwise
  */
-#define kavl_at(itr) ((itr)->top < (itr)->stack? 0 : *(itr)->top)
-
-+/
+///#define kavl_at(itr) ((itr)->top < (itr)->stack? 0 : *(itr)->top)
+pragma(inline, true)
+auto kavl_at(kavl_itr_t *itr)
+{
+    return (itr.top < itr.stack) ? null : itr.top;
+}

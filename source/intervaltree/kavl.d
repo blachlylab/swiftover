@@ -138,6 +138,8 @@ int main(void) {
 }
 */
 
+alias cmpfn = (x,y) => ((y < x) - (x < y));
+
 enum DIR : int
 {
     LEFT = 0,
@@ -182,7 +184,7 @@ Node *kavl_find(const(Node)* root, const(Node) *x, out uint cnt) {
     const(Node)* p = root;
 
     while (p !is null) {
-        const int cmp = (x < p);
+        const int cmp = cmpfn(x, p);
         if (cmp >= 0) cnt += kavl_size_child(p, DIR.LEFT) + 1; // left tree plus self
 
         if (cmp < 0) p = p.p[DIR.LEFT];         // descend leftward
@@ -333,7 +335,8 @@ Node *kavl_erase(Node **root_, const(Node) *x, out uint cnt) {
             }
         }
         cnt += kavl_size_child(p, DIR.LEFT) + 1; /* because p==x is not counted */
-    } else {
+    } else {    // NULL, delete the first node
+        assert(x is null);
         for (p = &fake, cnt = 1; p; p = p.p[DIR.LEFT])
             dir[d] = 0, path[d++] = p;
         p = path[--d];

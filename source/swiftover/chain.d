@@ -488,6 +488,28 @@ struct ChainFile
         // END ChainFile ctor
     }
 
+    /** Lift a single coordinate (in zero-based, half-open system),
+        mutating function parameters 
+        
+        Returns:    number of results (0 or 1)
+    */
+    int liftDirectly(ref string contig, ref int coord)
+    {
+        auto i = BasicInterval(coord, coord + 1);
+        auto o = this.chainsByContig[contig].findOverlapsWith(i);   // returns Node*
+
+        const auto nres = o.length;
+        if (!nres) return 0;
+        else {
+            const auto isect = o.front().interval.intersect(i);
+
+            // interval is type ChainLink
+            contig = isect.qContig;
+            coord = isect.qStart;
+            return 1;
+        }
+    }
+
     /** Lift coordinates from one build to another
 
         TODO: error handling (at cost of speed)

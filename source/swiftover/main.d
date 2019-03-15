@@ -72,7 +72,7 @@ int main(string[] args)
             liftBED(chainfile, infile, outfile, unmatched);
             break;
         case "vcf":
-            liftVCF(chainfile, infile, outfile);
+            liftVCF(chainfile, infile, outfile, unmatched);
             break;
         default:
             throw new Exception("Unknown file type. Use \"bed\" or \"vcf\".");

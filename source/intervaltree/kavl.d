@@ -140,6 +140,7 @@ int main(void) {
 
 alias cmpfn = (x,y) => ((y < x) - (x < y));
 
+/// child node direction
 enum DIR : int
 {
     LEFT = 0,
@@ -422,7 +423,7 @@ void kavl_free(Node * __root)
 }
 
 ///
-struct kavl_itr
+struct kavl_itr // @suppress(dscanner.style.phobos_naming_convention)
 {
     //const Node *stack[KAVL_MAX_DEPTH], **top, *right; /* _right_ points to the right child of *top */
     const(Node)*[KAVL_MAX_DEPTH] stack; /// ?
@@ -431,7 +432,12 @@ struct kavl_itr
 
 }
 
-///
+/**
+ * Place the iterator at the smallest object
+ *
+ * @param root    root of the tree
+ * @param itr     iterator
+ */
 void kavl_itr_first(const(Node)* root, kavl_itr* itr) {
     const(Node)* p;
     for (itr.top = &(itr.stack[0]) - 1, p = root; p; p = p.p[DIR.LEFT])
@@ -439,7 +445,16 @@ void kavl_itr_first(const(Node)* root, kavl_itr* itr) {
     itr.right = (*itr.top).p[DIR.RIGHT];
 }
 
-///
+/**
+ * Place the iterator at the object equal to or greater than the query
+ *
+ * @param root    root of the tree
+ * @param x       query (in)
+ * @param itr     iterator (out)
+ *
+ * @return 1 if find; 0 otherwise. kavl_at(itr) is NULL if and only if query is
+ *         larger than all objects in the tree
+ */
 int kavl_itr_find(const(Node)* root, const(Node)* x, kavl_itr* itr) {
     const(Node)* p = root;
     itr.top = &(itr.stack[0]) - 1;
@@ -459,7 +474,13 @@ int kavl_itr_find(const(Node)* root, const(Node)* x, kavl_itr* itr) {
     } else return 0;
 }
 
-///
+/**
+ * Move to the next object in order
+ *
+ * @param itr     iterator (modified)
+ *
+ * @return 1 if there is a next object; 0 otherwise
+ */
 int kavl_itr_next(kavl_itr *itr) {
     for (;;) {
         const(Node)* p;

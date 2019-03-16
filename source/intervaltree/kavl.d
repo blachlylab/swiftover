@@ -179,6 +179,8 @@ struct Node
  *
  * @return node equal to _x_ if present, or NULL if absent
  */
+@trusted    // cannot be @safe: casts away const
+@nogc nothrow
 Node *kavl_find(const(Node)* root, const(Node) *x, out uint cnt) {
 
     const(Node)* p = root;
@@ -192,7 +194,7 @@ Node *kavl_find(const(Node)* root, const(Node) *x, out uint cnt) {
         else break;
     }
 
-    return cast(Node*)p;
+    return cast(Node*)p;    // not allowed in @safe, but is const only within this fn
 }
 
 
@@ -239,7 +241,6 @@ Node *kavl_rotate2(Node *p, int dir) {
 /**
  * Insert a node to the tree
  *
- * @param suf     name suffix used in KAVL_INIT()
  * @param proot   pointer to the root of the tree (in/out: root may change)
  * @param x       node to insert (in)
  * @param cnt     number of nodes smaller than or equal to _x_; can be NULL (out)
@@ -250,7 +251,7 @@ Node *kavl_rotate2(Node *p, int dir) {
 Node *kavl_insert(Node **root_, Node *x, out uint cnt)
 {
     
-    char[KAVL_MAX_DEPTH] stack;
+    ubyte[KAVL_MAX_DEPTH] stack;
     Node*[KAVL_MAX_DEPTH] path;
 
     Node* bp;
@@ -264,9 +265,10 @@ Node *kavl_insert(Node **root_, Node *x, out uint cnt)
     bp = *root_, bq = null;
     /* find the insertion location */
     for (p = bp, q = bq, top = path_len = 0; p; q = p, p = p.p[which]) {
-        const int cmp = (x < p);
-        if (cmp >= 0) cnt += kavl_size_child(p, DIR.LEFT) + 1;
+        const int cmp = cmpfn(x, p);
+        if (cmp >= 0) cnt += kavl_size_child(p, DIR.LEFT) + 1; // left tree plus self
         if (cmp == 0) {
+            // an identical Node is already present here
             return p;
         }
         if (p.balance != 0)
@@ -275,7 +277,7 @@ Node *kavl_insert(Node **root_, Node *x, out uint cnt)
         path[path_len++] = p;
     }
 
-    x.balance = 0, x.size = 1, x.p[0] = x.p[1] = null;
+    x.balance = 0, x.size = 1, x.p[DIR.LEFT] = x.p[DIR.RIGHT] = null;
     if (q is null) *root_ = x;
     else q.p[which] = x;
     if (bp is null) return x;
@@ -283,7 +285,7 @@ Node *kavl_insert(Node **root_, Node *x, out uint cnt)
     for (p = bp, top = 0; p != x; p = p.p[stack[top]], ++top) /* update balance factors */
         if (stack[top] == 0) --p.balance;
         else ++p.balance;
-    if (bp.balance > -2 && bp.balance < 2) return x; /* no re-balance needed */
+    if (bp.balance > -2 && bp.balance < 2) return x; /* balance in [-1, 1] : no re-balance needed */
     /* re-balance */
     which = (bp.balance < 0);
     b1 = which == 0 ? +1 : -1;
@@ -301,9 +303,8 @@ Node *kavl_insert(Node **root_, Node *x, out uint cnt)
 /**
  * Delete a node from the tree
  *
- * @param suf     name suffix used in KAVL_INIT()
  * @param proot   pointer to the root of the tree (in/out: root may change)
- * @param x       node value to delete; if NULL, delete the first node (in)
+ * @param x       node value to delete; if NULL, delete the first (NB: NOT ROOT!) node (in)
  *
  * @return node removed from the tree if present, or NULL if absent
  */
@@ -319,32 +320,33 @@ Node *kavl_erase(Node **root_, const(Node) *x, out uint cnt) {
     Node fake;
     ubyte[KAVL_MAX_DEPTH] dir;
     int i, d = 0, cmp;
-    //unsigned cnt = 0;
-    fake.p[0] = *root_, fake.p[1] = null;
-    //if (cnt_) *cnt_ = 0;
+    fake.p[DIR.LEFT] = *root_, fake.p[DIR.RIGHT] = null;
+
     if (x !is null) {
-        for (cmp = -1, p = &fake; cmp; cmp = (x < p)) {
+        for (cmp = -1, p = &fake; cmp; cmp = cmpfn(x, p)) {
             const int which = (cmp > 0);
-            if (cmp > 0) cnt += kavl_size_child(p, DIR.LEFT) + 1;
+            if (cmp > 0) cnt += kavl_size_child(p, DIR.LEFT) + 1; // left tree plus self
             dir[d] = which;
             path[d++] = p;
             p = p.p[which];
             if (p is null) {
-                //if (cnt_) *cnt_ = 0;
+                // node not found
                 return null;
             }
         }
         cnt += kavl_size_child(p, DIR.LEFT) + 1; /* because p==x is not counted */
     } else {    // NULL, delete the first node
         assert(x is null);
+        // Descend leftward as far as possible, set p to this node
         for (p = &fake, cnt = 1; p; p = p.p[DIR.LEFT])
             dir[d] = 0, path[d++] = p;
         p = path[--d];
     }
-    //if (cnt_) *cnt_ = cnt;
+
     for (i = 1; i < d; ++i) --path[i].size;
-    if (p.p[1] is null) { /* ((1,.)2,3)4 => (1,3)4; p=2 */
-        path[d-1].p[dir[d-1]] = p.p[0];
+
+    if (p.p[DIR.RIGHT] is null) { /* ((1,.)2,3)4 => (1,3)4; p=2 */
+        path[d-1].p[dir[d-1]] = p.p[DIR.LEFT];
     } else {
         Node *q = p.p[DIR.RIGHT];
         if (q.p[0] is null) { /* ((1,2)3,4)5 => ((1)2,4)5; p=3 */
@@ -373,6 +375,8 @@ Node *kavl_erase(Node **root_, const(Node) *x, out uint cnt) {
             r.size = p.size - 1;
         }
     }
+
+    // Rebalance on the way up
     while (--d > 0) {
         Node *q = path[d];
         int which, other, b1 = 1, b2 = 2;
@@ -396,4 +400,24 @@ Node *kavl_erase(Node **root_, const(Node) *x, out uint cnt) {
     }
     *root_ = fake.p[0];
     return p;
+}
+
+/// free the entire tree
+pragma(inline, true)
+@trusted    // free() is @system; also, cannot use @trusted escape with @nogc 
+@nogc nothrow
+void kavl_free(Node * __root)
+{
+    import core.stdc.stdlib : free;
+    Node *_p, _q;
+    for (_p = __root; _p; _p = _q) {
+        if (_p.p[DIR.LEFT] is null) {
+            _q = _p.p[DIR.RIGHT];
+            free(_p);
+        } else {
+            _q = _p.p[DIR.LEFT];
+            _p.p[DIR.LEFT] = _q.p[DIR.RIGHT];
+            _q.p[DIR.RIGHT] = _p;
+        }
+    }
 }

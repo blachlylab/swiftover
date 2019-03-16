@@ -426,15 +426,15 @@ struct kavl_itr
 {
     //const Node *stack[KAVL_MAX_DEPTH], **top, *right; /* _right_ points to the right child of *top */
     const(Node)*[KAVL_MAX_DEPTH] stack; /// ?
-    Node** top;     /// _right_ points to the right child of *top
-    Node*  right;   /// _right_ points to the right child of *top
+    const(Node)** top;     /// _right_ points to the right child of *top
+    const(Node)*  right;   /// _right_ points to the right child of *top
 
 }
 
 ///
 void kavl_itr_first(const(Node)* root, kavl_itr* itr) {
     const(Node)* p;
-    for (itr.top = itr.stack - 1, p = root; p; p = p.p[DIR.LEFT])
+    for (itr.top = &(itr.stack[0]) - 1, p = root; p; p = p.p[DIR.LEFT])
         *++itr.top = p;
     itr.right = (*itr.top).p[DIR.RIGHT];
 }
@@ -442,7 +442,7 @@ void kavl_itr_first(const(Node)* root, kavl_itr* itr) {
 ///
 int kavl_itr_find(const(Node)* root, const(Node)* x, kavl_itr* itr) {
     const(Node)* p = root;
-    itr.top = itr.stack - 1;
+    itr.top = &(itr.stack[0]) - 1;
     while (p !is null) {
         const int cmp = cmpfn(x, p);
         if (cmp < 0) *++itr.top = p, p = p.p[DIR.LEFT];
@@ -453,7 +453,7 @@ int kavl_itr_find(const(Node)* root, const(Node)* x, kavl_itr* itr) {
         *++itr.top = p;
         itr.right = p.p[DIR.RIGHT];
         return 1;
-    } else if (itr.top >= itr.stack) {
+    } else if (itr.top >= &(itr.stack[0]) ) {
         itr.right = (*itr.top).p[DIR.RIGHT];
         return 0;
     } else return 0;
@@ -465,7 +465,7 @@ int kavl_itr_next(kavl_itr *itr) {
         const(Node)* p;
         for (p = itr.right, --itr.top; p; p = p.p[DIR.LEFT])
             *++itr.top = p;
-        if (itr.top < itr.stack) return 0;
+        if (itr.top < &(itr.stack[0]) ) return 0;
         itr.right = (*itr.top).p[DIR.RIGHT];
         return 1;
     }

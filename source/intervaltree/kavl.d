@@ -404,8 +404,7 @@ Node *kavl_erase(Node **root_, const(Node) *x, out uint cnt) {
 
 /// free the entire tree
 pragma(inline, true)
-@trusted    // free() is @system; also, cannot use @trusted escape with @nogc 
-@nogc nothrow
+@safe @nogc nothrow
 void kavl_free(Node * __root)
 {
     import core.stdc.stdlib : free;
@@ -413,7 +412,7 @@ void kavl_free(Node * __root)
     for (_p = __root; _p; _p = _q) {
         if (_p.p[DIR.LEFT] is null) {
             _q = _p.p[DIR.RIGHT];
-            free(_p);
+            ( () @trusted => free(_p))();   // @trusted escape, see https://dlang.org/blog/2016/09/28/how-to-write-trusted-code-in-d/
         } else {
             _q = _p.p[DIR.LEFT];
             _p.p[DIR.LEFT] = _q.p[DIR.RIGHT];

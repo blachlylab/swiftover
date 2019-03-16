@@ -55,7 +55,7 @@ class IntervalAVLtree(IntervalType)
         return p;
     }
 
-    /// /* one rotation: (a,(b,c)q)p => ((a,b)p,c)q */ \
+    /// /* one rotation: (a,(b,c)q)p => ((a,b)p,c)q */
     /// /* dir=0 to left; dir=1 to right */
     private Node* rotate1(Node* p, const int dir)
     {
@@ -418,5 +418,55 @@ void kavl_free(Node * __root)
             _p.p[DIR.LEFT] = _q.p[DIR.RIGHT];
             _q.p[DIR.RIGHT] = _p;
         }
+    }
+}
+
+///
+struct kavl_itr
+{
+    //const Node *stack[KAVL_MAX_DEPTH], **top, *right; /* _right_ points to the right child of *top */
+    const(Node)*[KAVL_MAX_DEPTH] stack; /// ?
+    Node** top;     /// _right_ points to the right child of *top
+    Node*  right;   /// _right_ points to the right child of *top
+
+}
+
+///
+void kavl_itr_first(const(Node)* root, kavl_itr* itr) {
+    const(Node)* p;
+    for (itr.top = itr.stack - 1, p = root; p; p = p.p[DIR.LEFT])
+        *++itr.top = p;
+    itr.right = (*itr.top).p[DIR.RIGHT];
+}
+
+///
+int kavl_itr_find(const(Node)* root, const(Node)* x, kavl_itr* itr) {
+    const(Node)* p = root;
+    itr.top = itr.stack - 1;
+    while (p !is null) {
+        const int cmp = cmpfn(x, p);
+        if (cmp < 0) *++itr.top = p, p = p.p[DIR.LEFT];
+        else if (cmp > 0) p = p.p[DIR.RIGHT];
+        else break; // found p == x
+    }
+    if (p !is null) {
+        *++itr.top = p;
+        itr.right = p.p[DIR.RIGHT];
+        return 1;
+    } else if (itr.top >= itr.stack) {
+        itr.right = (*itr.top).p[DIR.RIGHT];
+        return 0;
+    } else return 0;
+}
+
+///
+int kavl_itr_next(kavl_itr *itr) {
+    for (;;) {
+        const(Node)* p;
+        for (p = itr.right, --itr.top; p; p = p.p[DIR.LEFT])
+            *++itr.top = p;
+        if (itr.top < itr.stack) return 0;
+        itr.right = (*itr.top).p[DIR.RIGHT];
+        return 1;
     }
 }

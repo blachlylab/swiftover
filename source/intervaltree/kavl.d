@@ -491,3 +491,17 @@ int kavl_itr_next(kavl_itr *itr) {
         return 1;
     }
 }
+
+/**
+ * Return the pointer at the iterator
+ *
+ * @param itr     iterator
+ *
+ * @return pointer if present; NULL otherwise
+ */
+pragma(inline, true)
+@safe @nogc nothrow
+const(Node)* kavl_at(const(kavl_itr)* itr)
+{
+    return (itr.top < &(itr.stack[0])) ? null : *itr.top;
+}

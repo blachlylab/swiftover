@@ -212,7 +212,7 @@ Node *kavl_insert(Node **root_, Node *x, out uint cnt)
         q.balance = bp.balance = 0;
     } else r = kavl_rotate2(bp, which);
     if (bq is null) *root_ = r;
-    else bq.p[bp != bq.p[0]] = r;
+    else bq.p[bp != bq.p[0]] = r;   // wow
     return x;
 }
 

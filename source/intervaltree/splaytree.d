@@ -108,7 +108,7 @@ if (__traits(hasMember, IntervalType, "start") &&
     auto key() { return this.interval.start; }
 
     IntervalType interval;  /// must at a minimum include members start, end
-    int max;    /// maximum in this $(I subtree)
+    typeof(IntervalType.end) max;    /// maximum in this $(I subtree)
 
     IntervalTreeNode *parent;   /// parent node
     IntervalTreeNode *left;     /// left child

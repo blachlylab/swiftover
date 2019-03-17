@@ -57,14 +57,14 @@ int main(void) {
 alias cmpfn = (x,y) => ((y < x) - (x < y));
 
 /// child node direction
-enum DIR : int
+private enum DIR : int
 {
     LEFT = 0,
     RIGHT = 1
 }
 
 ///
-enum KAVL_MAX_DEPTH = 64;
+private enum KAVL_MAX_DEPTH = 64;
 
 ///
 pragma(inline, true)

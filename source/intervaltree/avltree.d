@@ -36,8 +36,8 @@ pragma(inline, true)
 @safe @nogc nothrow
 auto kavl_size_child(T)(T* q, int i) { return (q.p[i] ? q.p[i].size : 0); }
 
-/// Probably should not be used directly by consumer
-private struct IntervalTreeNode(IntervalType)
+/// Consumer needs to use this with insert functions (unlike splaytree fns, which take interval directly)
+struct IntervalTreeNode(IntervalType)
 if (__traits(hasMember, IntervalType, "start") &&
     __traits(hasMember, IntervalType, "end"))
 {
@@ -87,11 +87,13 @@ struct IntervalAVLTree(IntervalType)
 
     Node *root;    /// tree root
 
+    /+
     /// needed for iterator / range
     const(Node)*[KAVL_MAX_DEPTH] itrstack; /// ?
     const(Node)** top;     /// _right_ points to the right child of *top
     const(Node)*  right;   /// _right_ points to the right child of *top
-
+    +/
+    
     /**
     * Find a node in the tree
     *

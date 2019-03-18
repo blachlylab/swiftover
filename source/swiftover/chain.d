@@ -11,7 +11,12 @@ import std.format;
 import std.range;
 import std.stdio;
 
-import intervaltree.splaytree;
+version(avl)
+{
+    import intervaltree;    // BasicInterval and overlaps
+    import intervaltree.avltree;
+}
+else import intervaltree.splaytree;
 
 import dhtslib.htslib.hts_log;
 
@@ -428,7 +433,11 @@ struct ChainFile
     string destBuild; /// destination assembly, e.g. GRCh38 in an hg19->GRCh38 liftover
     +/
 
-    private IntervalSplayTree!(ChainLink)*[string] chainsByContig; /// AA of contig:string -> Interval Tree
+    /// AA of contig:string -> Interval Tree
+    version(avl)
+        private IntervalAVLTree!(ChainLink)*[string] chainsByContig;
+    else
+        private IntervalSplayTree!(ChainLink)*[string] chainsByContig;
 
     /// Parse UCSC-format chain file into liftover trees (one tree per source contig)
     this(string fn)
@@ -453,11 +462,17 @@ struct ChainFile
                     debug hts_log_trace(__FUNCTION__, format("Chain: %s", c));
                     
                     // Does this contig exist in the map?
-                    auto tree = this.chainsByContig.require(c.targetName, new IntervalSplayTree!ChainLink);
+                    version(avl)
+                        auto tree = this.chainsByContig.require(c.targetName, new IntervalAVLTree!ChainLink);
+                    else
+                        auto tree = this.chainsByContig.require(c.targetName, new IntervalSplayTree!ChainLink);
                     
                     // Insert all intervals from the chain into the tree
                     foreach(link; c.links)
-                        (*tree).insert(*link);
+                    {
+                        version(avl)    { uint cnt; (*tree).insert( new IntervalTreeNode!ChainLink(*link), cnt ); }
+                        else            (*tree).insert(*link);
+                    }
 
                 }
                 chainStart = i;
@@ -468,11 +483,17 @@ struct ChainFile
         debug hts_log_trace(__FUNCTION__, format("Final Chain: %s", c));
 
         // Does this contig exist in the map?
-        auto tree = this.chainsByContig.require(c.targetName, new IntervalSplayTree!ChainLink);
+        version(avl)
+            auto tree = this.chainsByContig.require(c.targetName, new IntervalAVLTree!ChainLink);
+        else
+            auto tree = this.chainsByContig.require(c.targetName, new IntervalSplayTree!ChainLink);
 
         // Insert all intervals from the chain into the tree
         foreach(link; c.links)
-            (*tree).insert(*link);
+        {
+            version(avl)    { uint cnt; (*tree).insert( new IntervalTreeNode!ChainLink(*link), cnt ); }
+            else            (*tree).insert(*link);
+        }
 
         debug { // debug-only to speed startup
             foreach(contig; this.chainsByContig.byKey) {
@@ -482,8 +503,11 @@ struct ChainFile
 
         // show me what's in the last accessed tree:
         debug { // debug-only to speed startup
-            while(tree.iteratorNext() !is null)
-            hts_log_trace(__FUNCTION__, format("sorted tree entry: %s", *tree.cur));
+            version(avl) {}
+            else {
+                while(tree.iteratorNext() !is null)
+                hts_log_trace(__FUNCTION__, format("sorted tree entry: %s", *tree.cur));
+            }
         }
         // END ChainFile ctor
     }

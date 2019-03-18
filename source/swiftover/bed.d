@@ -1,13 +1,46 @@
 module swiftover.bed;
 
 import std.algorithm : splitter;
-import std.array : appender, join;
+import std.algorithm.sorting;
+import std.array : appender, join, array;
 import std.conv;
 import std.file;
 import std.range.primitives;
 import std.stdio;
 
 import swiftover.chain;
+
+/**
+    Lookup table for strand (+, -) inversion
+
+    '+' == 0x2B
+    '-' == 0x2D
+
+    By indexing into table the sum of
+    invert ∈ {-1, +1} and char:strand
+    we obtain the new strand char.
+
+    33d == '!', to clue me in that something went wrong
+*/
+static char[256] STRAND_TABLE = [
+//  0   1   2   3   4   5   6   7   8   9   A   B   C   D   E   F
+    33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 
+    33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 
+    33, 33, 33, 33, 33, 33, 33, 33, 33, 33,'-', 33,'+', 33,'-', 33, 
+    33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 
+    33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 
+    33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 
+    33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 
+    33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 
+    33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 
+    33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 
+    33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 
+    33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 
+    33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 
+    33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 
+    33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 
+    33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 
+];
 
 /** Lift rows of infile to outfile using liftover chains in chainfile
 
@@ -65,29 +98,61 @@ void liftBED(string chainfile, string infile, string outfile, string unmatched)
         fields.clear();
         fields.put( line.splitter() );
 
+        const auto numf = fields.data.length;
+
         string contig = fields.data[0].idup;
         int start = fields.data[1].to!int;
         int end = fields.data[2].to!int;
 
-        // #matches
-        auto ret = cf.lift(contig, start, end);
+        // array (TODO: range) of matches as ChainLink(s)
+        auto trimmedLinks = cf.lift(contig, start, end);
 
-        if (ret.length == 0)
+        if (trimmedLinks.length == 0)
             fu.writef("%s\n", fields.data.join("\t"));
-        else if (ret.length == 1)
+        else
         {
-            fields.data[0] = ret.front().contig.dup;    
-            fields.data[1] = ret.front().start.text.dup;    // TODO benchmark vs .toChars.array
-            fields.data[2] = ret.front().end.text.dup;  // TODO benchmark vs .toChars.array
-            fo.writef("%s\n", fields.data.join("\t"));
-        }
-        else    // unrolled to skip loop setup in case ret.len == 1
-        {
-            foreach(ci; ret)    //chaininterval in return
+            alias querySort = (x,y) => x.qStart < y.qStart;
+            foreach(link; sort!querySort(trimmedLinks))
             {
-                fields.data[0] = ci.contig.dup;    
-                fields.data[1] = ci.start.text.dup;    // TODO benchmark vs .toChars.array
-                fields.data[2] = ci.end.text.dup;  // TODO benchmark vs .toChars.array
+                int thickStartOffset, thickSize;
+
+                fields.data[0] = link.qContig.dup;
+                start = link.qStart;
+                end   = link.qEnd;
+
+                // BED col 7 (idx 6): thickStart
+                // BED col 8 (idx 7): thickEnd
+                // Work on thickStart(col 7)/thickEnd(col 8) comes first because we need original start/End values
+                if (numf >= 8) {
+                    // UCSC: "When there is no thick part, thickStart and thickEnd are usually set to the chromStart position."
+                    if (fields.data[6] == fields.data[7]) {
+                        fields.data[6] = start.toChars.array;
+                        fields.data[7] = start.toChars.array;
+                    }
+                    else {
+                        // Because thickStart/thickEnd must lie within the bounds [col2,col3)
+                        // we can save a costly(???) extra lookup to the IntervalTree
+                        thickStartOffset = fields.data[6].to!int -
+                                                fields.data[1].to!int;
+                        thickSize = fields.data[7].to!int -
+                                                fields.data[6].to!int;
+
+                        auto trimmedThickStart = start + link.invert * thickStartOffset;
+                        auto trimmedThickEnd   = trimmedThickStart + link.invert * thickSize;
+                        orderStartEnd(trimmedThickStart, trimmedThickEnd);
+
+                        fields.data[6] = trimmedThickStart.toChars.array;
+                        fields.data[7] = trimmedThickEnd.toChars.array; 
+                    }
+                }
+
+                orderStartEnd(start, end);              // if invert, start > end, so swap
+                fields.data[1] = start.toChars.array;   // 67% time vs .text.dup;
+                fields.data[2] = end.toChars.array;
+                
+                // BED col 6: strand
+                if (numf >= 6) fields.data[5][0] = STRAND_TABLE[ fields.data[5][0] + link.invert ];
+
                 fo.writef("%s\n", fields.data.join("\t"));
             }
         }

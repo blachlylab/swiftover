@@ -100,9 +100,15 @@ struct IntervalTreeNode(IntervalType)
 if (__traits(hasMember, IntervalType, "start") &&
     __traits(hasMember, IntervalType, "end"))
 {
-    alias key = interval.start;
+    //alias key = interval.start;   // no longer works with the embedded
+                                    // structs and chain of alias this
+    /// sort key
+    pragma(inline,true)
+    @property @safe @nogc nothrow const
+    auto key() { return this.interval.start; }
+
     IntervalType interval;  /// must at a minimum include members start, end
-    int max;    /// maximum in this $(I subtree)
+    typeof(IntervalType.end) max;    /// maximum in this $(I subtree)
 
     IntervalTreeNode *parent;   /// parent node
     IntervalTreeNode *left;     /// left child
@@ -167,7 +173,8 @@ struct IntervalSplayTree(IntervalType)
 
     // NB if change to class, add 'final'
     /** zig a child of the root node */
-    @nogc nothrow
+    pragma(inline, true)
+    @safe @nogc nothrow
     private void zig(Node *n) 
     in
     {
@@ -229,7 +236,8 @@ struct IntervalSplayTree(IntervalType)
 
     // NB if change to class, add 'final'
     /** zig-zig  */
-    @nogc nothrow
+    pragma(inline, true)
+    @safe @nogc nothrow
     private void zigZig(Node *n) 
     in
     {
@@ -336,7 +344,8 @@ struct IntervalSplayTree(IntervalType)
 
     // NB if change to class, add 'final'
     /** zig-zag */
-    @nogc nothrow
+    pragma(inline, true)
+    @safe @nogc nothrow
     private void zigZag(Node *n) 
     in
     {

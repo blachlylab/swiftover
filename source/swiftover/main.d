@@ -47,8 +47,8 @@ int main(string[] args)
         return 1;
     }
 
-    // TODO: make cmd line flag -d, -dd, etc.
     debug hts_set_log_level(htsLogLevel.HTS_LOG_DEBUG);
+    debug(trace) hts_set_log_level(htsLogLevel.HTS_LOG_TRACE);
 
     if (!chainfile.exists)
         throw new FileException("Chainfile does not exist");

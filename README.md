@@ -7,6 +7,9 @@
 ## Background and Motivation
 
 Our goal is to be at least as fast as Jim Kent's seminal "liftOver" tool.
+We further hypothesize that specifically for sorted genome intervals,
+the implicit predictive caching of splay trees will outperform other
+tree structures.
 
 ## Requirements
 
@@ -21,7 +24,10 @@ Swiftover needs uncompressed chain files.
 ## File Formats
 ### BED
 
-All BED formats supported, but columns  beyond the first three (i.e., strand, thickStart, thickStop) are not yet updated.
+All BED formats supported, including column 6 (strand) and columns 7-8 (thickStart/thickEnd).
+
+*CAVEATS:* swiftover does not join intervals that are discontiguous
+in the destination coordinates, whereas UCSC liftOver does.
 
 ### VCF
 

@@ -129,7 +129,7 @@ struct ChainLink
     }
 
     /// Overload <, <=, >, >= for ChainLink/ChainLin; compare query
-	@nogc int opCmp(ref const ChainLink other) const nothrow
+	@safe @nogc int opCmp(ref const ChainLink other) const nothrow
 	{
         /+
 		// Intervals from different contigs are incomparable
@@ -526,11 +526,11 @@ struct ChainFile
         auto o = this.chainsByContig[contig].findOverlapsWith(i);   // returns Node*(s)
 
         // marked as debug because in hot code path
-        debug foreach(x; o) hts_log_trace(__FUNCTION__, format("%s", *x));
+        debug foreach(x; o) hts_log_debug(__FUNCTION__, format("%s", *x));
 
         if (o.length == 0)  // no match
         {
-            debug hts_log_trace(__FUNCTION__, "No match to interval");
+            debug hts_log_debug(__FUNCTION__, "No match to interval");
 
             // -O3 will elide the stack alloc, thanks godbolt.org !
             ChainLink[] ret;
@@ -538,7 +538,7 @@ struct ChainFile
         }
         else if (o.length == 1) // one match
         {
-            debug hts_log_trace(__FUNCTION__, "One match to interval");
+            debug hts_log_debug(__FUNCTION__, "One match to interval");
 
             // intersect makes the chain link comply with bounds of interval
             const auto isect = o.front().interval.intersect(i);
@@ -552,6 +552,8 @@ struct ChainFile
         }
         else    // TODO optimize; return Range
         {
+            debug hts_log_debug(__FUNCTION__, "Multiple matches to interval");
+
             auto isect = o.map!(x => x.interval.intersect(i));
 
             return array(isect);

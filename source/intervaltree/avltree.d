@@ -14,7 +14,9 @@ import intervaltree : BasicInterval, overlaps;
 
 import containers.unrolledlist;
 
-alias cmpfn = (x,y) => ((y < x) - (x < y));
+// LOL, this compares pointer addresses
+//alias cmpfn = (x,y) => ((y < x) - (x < y));
+@safe alias cmpfn = (x,y) => ((y.interval < x.interval) - (x.interval < y.interval));
 
 /// child node direction
 private enum DIR : int
@@ -93,7 +95,7 @@ struct IntervalAVLTree(IntervalType)
     const(Node)** top;     /// _right_ points to the right child of *top
     const(Node)*  right;   /// _right_ points to the right child of *top
     +/
-    
+
     /**
     * Find a node in the tree
     *

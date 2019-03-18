@@ -1,5 +1,12 @@
 module intervaltree;
 
+/// child node direction
+enum DIR : int
+{
+    LEFT = 0,
+    RIGHT = 1
+}
+
 /// Interval with zero-based, half-open coordinates
 /// Any other Interval struct (or class?) OK
 /// as long as it contains "start" and "end"

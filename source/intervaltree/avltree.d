@@ -10,20 +10,13 @@ License for commercial use: Negotiable; contact author
 */
 module intervaltree.avltree;
 
-import intervaltree : BasicInterval, overlaps;
+import intervaltree : DIR, BasicInterval, overlaps;
 
 import containers.unrolledlist;
 
 // LOL, this compares pointer addresses
 //alias cmpfn = (x,y) => ((y < x) - (x < y));
 @safe alias cmpfn = (x,y) => ((y.interval < x.interval) - (x.interval < y.interval));
-
-/// child node direction
-private enum DIR : int
-{
-    LEFT = 0,
-    RIGHT = 1
-}
 
 ///
 private enum KAVL_MAX_DEPTH = 64;

@@ -12,6 +12,8 @@ License for commercial use: Negotiable; contact author
 */
 module intervaltree.splaytree;
 
+import intervaltree : DIR;
+
 import containers.unrolledlist;
 
 /** Detect overlap between this interval and other given interval
@@ -238,7 +240,7 @@ struct IntervalSplayTree(IntervalType)
     /** zig-zig  */
     pragma(inline, true)
     @safe @nogc nothrow
-    private void zigZig(Node *n) 
+    private void zigZig(DIR d)(Node *n) 
     in
     {
         // zig-zig should not be called on empty tree
@@ -257,8 +259,10 @@ struct IntervalSplayTree(IntervalType)
         Node *p = n.parent;
         Node *g = p.parent;
 
-        if (p.left == n)
+        //if (p.left == n)
+        static if (d == DIR.RIGHT)
         {
+            assert(p.left == n);
 /*
         /g\
        /   \
@@ -456,8 +460,8 @@ struct IntervalSplayTree(IntervalType)
             const Node *p = n.parent;
             const Node *g = p.parent;
             if (g is null) zig(n);
-            else if (g.left == p && p.left == n) zigZig(n);
-            else if (g.right== p && p.right== n) zigZig(n);
+            else if (g.left == p && p.left == n) zigZig!(DIR.RIGHT)(n);
+            else if (g.right== p && p.right== n) zigZig!(DIR.LEFT)(n);
             else zigZag(n);
         }
         this.root = n;

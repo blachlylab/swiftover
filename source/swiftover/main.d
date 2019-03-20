@@ -42,7 +42,10 @@ int main(string[] args)
 
     if (usage.helpWanted)
     {
-        defaultGetoptPrinter("🚀 swift liftover",
+        version(avl) enum treeTypeString = " (version: AVL trees)";
+        else enum treeTypeString = " (version: splay trees)";
+
+        defaultGetoptPrinter("🚀 swift liftover" ~ treeTypeString,
             usage.options);
         return 1;
     }

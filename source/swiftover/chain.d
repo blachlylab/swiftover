@@ -11,11 +11,8 @@ import std.format;
 import std.range;
 import std.stdio;
 
-version(avl)
-{
-    import intervaltree;    // BasicInterval and overlaps
-    import intervaltree.avltree;
-}
+import intervaltree;    // BasicInterval and overlaps
+version(avl) import intevaltree.avltree;
 else import intervaltree.splaytree;
 
 import dhtslib.htslib.hts_log;

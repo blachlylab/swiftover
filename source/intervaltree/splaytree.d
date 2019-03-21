@@ -260,7 +260,7 @@ struct IntervalSplayTree(IntervalType)
         // 2. g, p, or n may need to be changed
         // 3. g -> p -> n after both left zigzig and right zigzig
         // conclusion: can update on g and it will percolate upward
-        updateMax(g);
+        updateMax(g, 3);
     }
 
     // NB if change to class, add 'final'
@@ -364,7 +364,7 @@ struct IntervalSplayTree(IntervalType)
         // 3. p and g are children of n after left zig-zag or right zig-zag
         // conclusion: updating and percolating upward on both p and g would be wasteful
         updateMax(p, 1);    // do not bubble up
-        updateMax(g);       // bubble up (default)
+        updateMax(g, 2);       // bubble up (default)
     }
 
     // NB if change to class, add 'final'

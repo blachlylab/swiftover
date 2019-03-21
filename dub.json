@@ -9,5 +9,14 @@
 		"dhtslib": { "path": "../dhtslib" }
 	},
 	"buildRequirements": [ "allowWarnings" ],
-	"versions": ["splay"]
+	"configurations": [
+		{
+			"name": "splaytree",
+			"version": "splay"
+		},
+		{
+			"name": "avltree",
+			"version": "avl"
+		}
+	]
 }

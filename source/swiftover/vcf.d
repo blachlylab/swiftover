@@ -5,13 +5,13 @@ import std.format;
 import swiftover.chain;
 
 import dhtslib.vcf;
+import dhtslib.htslib.vcf;
 import dhtslib.htslib.hts_log;
 
 ///
 void liftVCF(string chainfile, string genomefile, string infile, string outfile, string unmatched)
 {
     import std.string : toStringz;
-    import dhtslib.htslib.vcf;
     
     auto cf = ChainFile(chainfile);
     

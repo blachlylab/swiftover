@@ -440,14 +440,17 @@ struct ChainFile
     else
         private IntervalSplayTree!(ChainLink)*[string] chainsByContig;
 
-    auto qContigSizes = HashMap!(string, int)(256); /// query (destination build) contigs,
-                                                    /// need for VCF
+    HashMap!(string, int) qContigSizes; /// query (destination build) contigs,
+                                        /// need for VCF
 
     /// Parse UCSC-format chain file into liftover trees (one tree per source contig)
     this(string fn)
     {
         if (!fn.exists)
             throw new FileException("File does not exist");
+
+        // Cannot undergo static init
+        this.qContigSizes = HashMap!(string, int)(256);
 
         // TODO: speed this pig up
         auto chainArray = fn.File.byLineCopy().array();

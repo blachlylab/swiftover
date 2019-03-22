@@ -1,88 +1,4 @@
-module intervaltree.avl;
-
-/// https://rosettacode.org/wiki/AVL_tree#D
-/+
-private struct IntervalTreeNode(IntervalType)
-{
-    IntervalType interval;
-
-    // sort key
-    alias key = interval.start;
-    int balance;// balance factor
-    int height; // aka size; # elements in subtree
-
-    IntervalTreeNode *parent;
-    IntervalTreeNode *left;
-    IntervalTreeNode *right;
-
-    invariant
-    {
-        // Ensure children are distinct
-        if (this.left !is null && this.right !is null)
-        {
-            assert(this.left != this.right, "Left and righ child appear identical");
-        }
-    }
-}
-
-///
-class IntervalAVLtree(IntervalType)
-{
-    alias Node = IntervalTreeNode!IntervalType;
-
-    private Node* root;
-
-    /**
-    * Find a node in the tree
-    *
-    * @param x       node value to find (in)
-    * @param cnt     number of nodes smaller than or equal to _x_; can be NULL (out)
-    *
-    * @return node equal to _x_ if present, or NULL if absent
-    */
-    Node* find(const(Node)* x, out uint cnt)
-    {
-        const Node* p = this.root;
-        //uint cnt = 0;
-        while (p !is null) {
-            const int cmp = (x < p);
-            if (cmp >= 0) cnt += (p.left ? p.left.height : 0) + 1;
-            if (cmp < 0) p = p.left;
-            else if (cmp > 0) p = p.right;
-            else break;
-        }
-        //if (cnt_ !is null) *cnt_ = cnt;
-        return p;
-    }
-
-    /// /* one rotation: (a,(b,c)q)p => ((a,b)p,c)q */ \
-    /// /* dir=0 to left; dir=1 to right */
-    private Node* rotate1(Node* p, const int dir)
-    {
-        const int opp = 1 - dir; /* opposite direction */
-        Node *q = p.__head.p[opp];
-        uint size_p = p.__head.size;
-        p.__head.size -= q.__head.size - kavl_size_child(__head, q, dir);
-        q.__head.size = size_p;
-        p.__head.p[opp] = q.__head.p[dir];
-        q.__head.p[dir] = p;
-        return q;
-    }
-
-    ///
-    pure nothrow @nogc @safe
-    final bool insert(const Node key);
-
-    ///
-    pure nothrow @nogc @safe
-    final bool remove(Node key);
-
-    pure nothrow @nogc @safe
-    private void rebalance(Node *n);
-
-
-}
-+/
+module intervaltree.kavl;
 
 /* The MIT License
    Copyright (c) 2018 by Attractive Chaos <attractor@live.co.uk>
@@ -140,14 +56,15 @@ int main(void) {
 
 alias cmpfn = (x,y) => ((y < x) - (x < y));
 
-enum DIR : int
+/// child node direction
+private enum DIR : int
 {
     LEFT = 0,
     RIGHT = 1
 }
 
 ///
-enum KAVL_MAX_DEPTH = 64;
+private enum KAVL_MAX_DEPTH = 64;
 
 ///
 pragma(inline, true)
@@ -179,6 +96,8 @@ struct Node
  *
  * @return node equal to _x_ if present, or NULL if absent
  */
+@trusted    // cannot be @safe: casts away const
+@nogc nothrow
 Node *kavl_find(const(Node)* root, const(Node) *x, out uint cnt) {
 
     const(Node)* p = root;
@@ -192,7 +111,7 @@ Node *kavl_find(const(Node)* root, const(Node) *x, out uint cnt) {
         else break;
     }
 
-    return cast(Node*)p;
+    return cast(Node*)p;    // not allowed in @safe, but is const only within this fn
 }
 
 
@@ -239,7 +158,6 @@ Node *kavl_rotate2(Node *p, int dir) {
 /**
  * Insert a node to the tree
  *
- * @param suf     name suffix used in KAVL_INIT()
  * @param proot   pointer to the root of the tree (in/out: root may change)
  * @param x       node to insert (in)
  * @param cnt     number of nodes smaller than or equal to _x_; can be NULL (out)
@@ -250,7 +168,7 @@ Node *kavl_rotate2(Node *p, int dir) {
 Node *kavl_insert(Node **root_, Node *x, out uint cnt)
 {
     
-    char[KAVL_MAX_DEPTH] stack;
+    ubyte[KAVL_MAX_DEPTH] stack;
     Node*[KAVL_MAX_DEPTH] path;
 
     Node* bp;
@@ -264,9 +182,10 @@ Node *kavl_insert(Node **root_, Node *x, out uint cnt)
     bp = *root_, bq = null;
     /* find the insertion location */
     for (p = bp, q = bq, top = path_len = 0; p; q = p, p = p.p[which]) {
-        const int cmp = (x < p);
-        if (cmp >= 0) cnt += kavl_size_child(p, DIR.LEFT) + 1;
+        const int cmp = cmpfn(x, p);
+        if (cmp >= 0) cnt += kavl_size_child(p, DIR.LEFT) + 1; // left tree plus self
         if (cmp == 0) {
+            // an identical Node is already present here
             return p;
         }
         if (p.balance != 0)
@@ -275,7 +194,7 @@ Node *kavl_insert(Node **root_, Node *x, out uint cnt)
         path[path_len++] = p;
     }
 
-    x.balance = 0, x.size = 1, x.p[0] = x.p[1] = null;
+    x.balance = 0, x.size = 1, x.p[DIR.LEFT] = x.p[DIR.RIGHT] = null;
     if (q is null) *root_ = x;
     else q.p[which] = x;
     if (bp is null) return x;
@@ -283,7 +202,7 @@ Node *kavl_insert(Node **root_, Node *x, out uint cnt)
     for (p = bp, top = 0; p != x; p = p.p[stack[top]], ++top) /* update balance factors */
         if (stack[top] == 0) --p.balance;
         else ++p.balance;
-    if (bp.balance > -2 && bp.balance < 2) return x; /* no re-balance needed */
+    if (bp.balance > -2 && bp.balance < 2) return x; /* balance in [-1, 1] : no re-balance needed */
     /* re-balance */
     which = (bp.balance < 0);
     b1 = which == 0 ? +1 : -1;
@@ -293,7 +212,7 @@ Node *kavl_insert(Node **root_, Node *x, out uint cnt)
         q.balance = bp.balance = 0;
     } else r = kavl_rotate2(bp, which);
     if (bq is null) *root_ = r;
-    else bq.p[bp != bq.p[0]] = r;
+    else bq.p[bp != bq.p[0]] = r;   // wow
     return x;
 }
 
@@ -301,9 +220,8 @@ Node *kavl_insert(Node **root_, Node *x, out uint cnt)
 /**
  * Delete a node from the tree
  *
- * @param suf     name suffix used in KAVL_INIT()
  * @param proot   pointer to the root of the tree (in/out: root may change)
- * @param x       node value to delete; if NULL, delete the first node (in)
+ * @param x       node value to delete; if NULL, delete the first (NB: NOT ROOT!) node (in)
  *
  * @return node removed from the tree if present, or NULL if absent
  */
@@ -319,32 +237,33 @@ Node *kavl_erase(Node **root_, const(Node) *x, out uint cnt) {
     Node fake;
     ubyte[KAVL_MAX_DEPTH] dir;
     int i, d = 0, cmp;
-    //unsigned cnt = 0;
-    fake.p[0] = *root_, fake.p[1] = null;
-    //if (cnt_) *cnt_ = 0;
+    fake.p[DIR.LEFT] = *root_, fake.p[DIR.RIGHT] = null;
+
     if (x !is null) {
-        for (cmp = -1, p = &fake; cmp; cmp = (x < p)) {
+        for (cmp = -1, p = &fake; cmp; cmp = cmpfn(x, p)) {
             const int which = (cmp > 0);
-            if (cmp > 0) cnt += kavl_size_child(p, DIR.LEFT) + 1;
+            if (cmp > 0) cnt += kavl_size_child(p, DIR.LEFT) + 1; // left tree plus self
             dir[d] = which;
             path[d++] = p;
             p = p.p[which];
             if (p is null) {
-                //if (cnt_) *cnt_ = 0;
+                // node not found
                 return null;
             }
         }
         cnt += kavl_size_child(p, DIR.LEFT) + 1; /* because p==x is not counted */
     } else {    // NULL, delete the first node
         assert(x is null);
+        // Descend leftward as far as possible, set p to this node
         for (p = &fake, cnt = 1; p; p = p.p[DIR.LEFT])
             dir[d] = 0, path[d++] = p;
         p = path[--d];
     }
-    //if (cnt_) *cnt_ = cnt;
+
     for (i = 1; i < d; ++i) --path[i].size;
-    if (p.p[1] is null) { /* ((1,.)2,3)4 => (1,3)4; p=2 */
-        path[d-1].p[dir[d-1]] = p.p[0];
+
+    if (p.p[DIR.RIGHT] is null) { /* ((1,.)2,3)4 => (1,3)4; p=2 */
+        path[d-1].p[dir[d-1]] = p.p[DIR.LEFT];
     } else {
         Node *q = p.p[DIR.RIGHT];
         if (q.p[0] is null) { /* ((1,2)3,4)5 => ((1)2,4)5; p=3 */
@@ -373,6 +292,8 @@ Node *kavl_erase(Node **root_, const(Node) *x, out uint cnt) {
             r.size = p.size - 1;
         }
     }
+
+    // Rebalance on the way up
     while (--d > 0) {
         Node *q = path[d];
         int which, other, b1 = 1, b2 = 2;
@@ -396,4 +317,107 @@ Node *kavl_erase(Node **root_, const(Node) *x, out uint cnt) {
     }
     *root_ = fake.p[0];
     return p;
+}
+
+/// free the entire tree
+pragma(inline, true)
+@safe @nogc nothrow
+void kavl_free(Node * __root)
+{
+    import core.stdc.stdlib : free;
+    Node *_p, _q;
+    for (_p = __root; _p; _p = _q) {
+        if (_p.p[DIR.LEFT] is null) {
+            _q = _p.p[DIR.RIGHT];
+            ( () @trusted => free(_p))();   // @trusted escape, see https://dlang.org/blog/2016/09/28/how-to-write-trusted-code-in-d/
+        } else {
+            _q = _p.p[DIR.LEFT];
+            _p.p[DIR.LEFT] = _q.p[DIR.RIGHT];
+            _q.p[DIR.RIGHT] = _p;
+        }
+    }
+}
+
+///
+struct kavl_itr // @suppress(dscanner.style.phobos_naming_convention)
+{
+    //const Node *stack[KAVL_MAX_DEPTH], **top, *right; /* _right_ points to the right child of *top */
+    const(Node)*[KAVL_MAX_DEPTH] stack; /// ?
+    const(Node)** top;     /// _right_ points to the right child of *top
+    const(Node)*  right;   /// _right_ points to the right child of *top
+
+}
+
+/**
+ * Place the iterator at the smallest object
+ *
+ * @param root    root of the tree
+ * @param itr     iterator
+ */
+void kavl_itr_first(const(Node)* root, kavl_itr* itr) {
+    const(Node)* p;
+    for (itr.top = &(itr.stack[0]) - 1, p = root; p; p = p.p[DIR.LEFT])
+        *++itr.top = p;
+    itr.right = (*itr.top).p[DIR.RIGHT];
+}
+
+/**
+ * Place the iterator at the object equal to or greater than the query
+ *
+ * @param root    root of the tree
+ * @param x       query (in)
+ * @param itr     iterator (out)
+ *
+ * @return 1 if find; 0 otherwise. kavl_at(itr) is NULL if and only if query is
+ *         larger than all objects in the tree
+ */
+int kavl_itr_find(const(Node)* root, const(Node)* x, kavl_itr* itr) {
+    const(Node)* p = root;
+    itr.top = &(itr.stack[0]) - 1;
+    while (p !is null) {
+        const int cmp = cmpfn(x, p);
+        if (cmp < 0) *++itr.top = p, p = p.p[DIR.LEFT];
+        else if (cmp > 0) p = p.p[DIR.RIGHT];
+        else break; // found p == x
+    }
+    if (p !is null) {
+        *++itr.top = p;
+        itr.right = p.p[DIR.RIGHT];
+        return 1;
+    } else if (itr.top >= &(itr.stack[0]) ) {
+        itr.right = (*itr.top).p[DIR.RIGHT];
+        return 0;
+    } else return 0;
+}
+
+/**
+ * Move to the next object in order
+ *
+ * @param itr     iterator (modified)
+ *
+ * @return 1 if there is a next object; 0 otherwise
+ */
+int kavl_itr_next(kavl_itr *itr) {
+    for (;;) {
+        const(Node)* p;
+        for (p = itr.right, --itr.top; p; p = p.p[DIR.LEFT])
+            *++itr.top = p;
+        if (itr.top < &(itr.stack[0]) ) return 0;
+        itr.right = (*itr.top).p[DIR.RIGHT];
+        return 1;
+    }
+}
+
+/**
+ * Return the pointer at the iterator
+ *
+ * @param itr     iterator
+ *
+ * @return pointer if present; NULL otherwise
+ */
+pragma(inline, true)
+@safe @nogc nothrow
+const(Node)* kavl_at(const(kavl_itr)* itr)
+{
+    return (itr.top < &(itr.stack[0])) ? null : *itr.top;
 }

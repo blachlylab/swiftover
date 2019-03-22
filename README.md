@@ -7,6 +7,9 @@
 ## Background and Motivation
 
 Our goal is to be at least as fast as Jim Kent's seminal "liftOver" tool.
+We further hypothesize that specifically for sorted genome intervals,
+the implicit predictive caching of splay trees will outperform other
+tree structures.
 
 ## Requirements
 
@@ -21,11 +24,22 @@ Swiftover needs uncompressed chain files.
 ## File Formats
 ### BED
 
-All BED formats supported, but columns  beyond the first three (i.e., strand, thickStart, thickStop) are not yet updated.
+All BED formats supported, including column 6 (strand) and columns 7-8 (thickStart/thickEnd).
 
-*BUGS AND CAVEATS:* Records that lift over into multiple records in the destination
-build may appear in unsorted order.
+*CAVEATS:* swiftover does not join intervals that are discontiguous
+in the destination coordinates, whereas UCSC liftOver does.
 
 ### VCF
 
 _WIP_
+
+## Compiling from source
+
+DMD codegen is poor, and execution is too slow. Use LDC2 and `dub -b=release` for > 100% speedup.
+
+when using LDC2, or when using the GOLD linker (instead of traditional GNU ld), you'll need to make sure
+that the linker can find libhts, which is often installed in `/usr/local/lib`. GOLD does not search there
+by default, nor does it examine `LD_LIBRARY_PATH`. It does, however, search `LIBRARY_PATH`, so add
+`export LIBRARY_PATH=/usr/local/lib` to build scripts or run before dub build.
+
+thanks to [http://jbohren.com/articles/2013-10-28-gold/](http://jbohren.com/articles/2013-10-28-gold/)

@@ -8,7 +8,7 @@ import dhtslib.vcf;
 import dhtslib.htslib.hts_log;
 
 ///
-void liftVCF(string chainfile, string infile, string outfile, string unmatched)
+void liftVCF(string chainfile, string genomefile, string infile, string outfile, string unmatched)
 {
     import std.string : toStringz;
     import dhtslib.htslib.vcf;
@@ -53,7 +53,6 @@ void liftVCF(string chainfile, string infile, string outfile, string unmatched)
             nmatched++;
             fo.writeRecord(rec);
         }
-
     }
     
     hts_log_info(__FUNCTION__, format("Matched %d records (%d unmatched)", nmatched, nunmatched));

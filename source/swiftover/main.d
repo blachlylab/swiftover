@@ -12,8 +12,9 @@ import dhtslib.htslib.hts_log;
 
 int main(string[] args)
 {
-    string chainfile;
     string fileType;
+    string chainfile;
+    string genomefile;
     string infile;
     string outfile;
     string unmatched;
@@ -27,6 +28,7 @@ int main(string[] args)
         "t|type", "File type: bed|vcf", &fileType,
         std.getopt.config.required,
         "c|chainfile", "UCSC-format chain file", &chainfile,
+        "g|genome", "Genome (destination build; req. for VCF)", &genomefile,
         "i|infile", "Input file; - or omit for stdin", &infile,
         "o|outfile", "Output file; - or omit for stdout", &outfile,
         "u|unmatched", "Unmatched output file", &unmatched,
@@ -42,13 +44,16 @@ int main(string[] args)
 
     if (usage.helpWanted)
     {
-        defaultGetoptPrinter("🚀 swift liftover",
+        version(avl) enum treeTypeString = " (version: AVL trees)";
+        else enum treeTypeString = " (version: splay trees)";
+
+        defaultGetoptPrinter("🚀 swift liftover" ~ treeTypeString,
             usage.options);
         return 1;
     }
 
-    // TODO: make cmd line flag -d, -dd, etc.
     debug hts_set_log_level(htsLogLevel.HTS_LOG_DEBUG);
+    debug(trace) hts_set_log_level(htsLogLevel.HTS_LOG_TRACE);
 
     if (!chainfile.exists)
         throw new FileException("Chainfile does not exist");
@@ -72,7 +77,9 @@ int main(string[] args)
             liftBED(chainfile, infile, outfile, unmatched);
             break;
         case "vcf":
-            liftVCF(chainfile, infile, outfile, unmatched);
+            if (genomefile == "")
+                throw new Exception("Genome FASTA (for the destination build)required.");
+            liftVCF(chainfile, genomefile, infile, outfile, unmatched);
             break;
         default:
             throw new Exception("Unknown file type. Use \"bed\" or \"vcf\".");

@@ -12,88 +12,9 @@ License for commercial use: Negotiable; contact author
 */
 module intervaltree.splaytree;
 
+import intervaltree : BasicInterval, overlaps;
+
 import containers.unrolledlist;
-
-/** Detect overlap between this interval and other given interval
-    in a half-open coordinate system [start, end)
-
-Top-level function template for reuse by many types of Interval objects
-Template type parameter Interval Type must have {start, end}
-Still usable with member-function style due to UFCS: interval.overlaps(other)
-
-return true in any of the following four situations:
-    int1   =====    =======
-    int2  =======  =======
-    
-    int1  =======  =======
-    int2    ===      =======
-
-return false in any other scenario:
-    int1  =====       |       =====
-    int2       =====  |  =====
-
-NOTE that in half-open coordinates [start, end)
- i1.end == i2.start => Adjacent, but NO overlap
-*/
-@nogc nothrow
-bool overlaps(IntervalType1, IntervalType2)(IntervalType1 int1, IntervalType2 int2)
-if (__traits(hasMember, IntervalType1, "start") &&
-    __traits(hasMember, IntervalType1, "end") &&
-    __traits(hasMember, IntervalType2, "start") &&
-    __traits(hasMember, IntervalType2, "end"))
-{
-    // DMD cannot inline this
-    version(LDC) pragma(inline, true);
-    version(GDC) pragma(inline, true);
-    // int1   =====    =======
-    // int2 =======  =======
-    if (int2.start <= int1.start &&  int1.start < int2.end) return true;
-
-    // int1  =======  =======
-    // int2   ===      =======
-    else if (int1.start <= int2.start && int2.start < int1.end) return true;
-
-    // int1  =====        |       =====
-    // int2       =====   |  =====
-    else return false;
-}
-
-/// Interval with zero-based, half-open coordinates
-/// Any other Interval struct (or class?) OK
-/// as long as it contains "start" and "end"
-struct BasicInterval
-{
-    int start;  /// zero-based half-open
-    int end;    /// zero-based half-open
-
-    /// override the <, <=, >, >= operators; we'll use compiler generated default opEqual
-    @nogc nothrow
-    int opCmp(const ref BasicInterval other) const 
-    {		
-		if (this.start < other.start) return -1;
-		else if(this.start > other.start) return 1;
-		else if(this.start == other.start && this.end < other.end) return -1;	// comes third as should be less common
-		else if(this.start == other.start && this.end > other.end) return 1;
-		else return 0;	// would be reached in case of equality
-    }
-    /// override <, <=, >, >= to compare directly to int: compare only the start coordinate
-    @nogc nothrow
-    int opCmp(const int other) const 
-    {
-        return this.start - other;
-    }
-
-    string toString() const
-	{
-        import std.format : format;
-		return format("[%d, %d)", this.start, this.end);
-	}
-
-    invariant
-    {
-        assert(this.start <= this.end);
-    }
-}
 
 /// Probably should not be used directly by consumer
 struct IntervalTreeNode(IntervalType)
@@ -104,11 +25,11 @@ if (__traits(hasMember, IntervalType, "start") &&
                                     // structs and chain of alias this
     /// sort key
     pragma(inline,true)
-    @property @nogc nothrow const
+    @property @safe @nogc nothrow const
     auto key() { return this.interval.start; }
 
     IntervalType interval;  /// must at a minimum include members start, end
-    int max;    /// maximum in this $(I subtree)
+    typeof(IntervalType.end) max;    /// maximum in this $(I subtree)
 
     IntervalTreeNode *parent;   /// parent node
     IntervalTreeNode *left;     /// left child
@@ -173,7 +94,8 @@ struct IntervalSplayTree(IntervalType)
 
     // NB if change to class, add 'final'
     /** zig a child of the root node */
-    @nogc nothrow
+    pragma(inline, true)
+    @safe @nogc nothrow
     private void zig(Node *n) 
     in
     {
@@ -229,13 +151,15 @@ struct IntervalSplayTree(IntervalType)
         // 1. scenarios when both root/"parent" and Node n need to be updated may exist
         // 2. A, B, C, D subtrees never need to be updated
         // 3. other subtree of root/"parent" never needs to be updated
-        // conclusion: update p which is now child of n, will percolate upward
+        // conclusion: n takes p's max; update p which is now child of n
+        n.max = p.max;  // n now at root, can take p (prior root)'s max
         updateMax(p); 
     }
 
     // NB if change to class, add 'final'
     /** zig-zig  */
-    @nogc nothrow
+    //pragma(inline, true)
+    @safe @nogc nothrow
     private void zigZig(Node *n) 
     in
     {
@@ -252,6 +176,10 @@ struct IntervalSplayTree(IntervalType)
     }
     do
     {
+        // DMD cannot inline this
+        version(LDC) pragma(inline, true);
+        version(GDC) pragma(inline, true);
+
         Node *p = n.parent;
         Node *g = p.parent;
 
@@ -336,13 +264,17 @@ struct IntervalSplayTree(IntervalType)
         // 1. A, B, C, D had only a parent changed => nver need max updated
         // 2. g, p, or n may need to be changed
         // 3. g -> p -> n after both left zigzig and right zigzig
-        // conclusion: can update on g and it will percolate upward
+        // conclusion: can update on g and percolate upward
+        // update: never need to update n (prev: g)'s parent or higher
+        n.max = g.max;  // take max of prior subtree root (g)
         updateMax(g);
+        updateMax(p);
     }
 
     // NB if change to class, add 'final'
     /** zig-zag */
-    @nogc nothrow
+    //pragma(inline, true)
+    @safe @nogc nothrow
     private void zigZag(Node *n) 
     in
     {
@@ -359,6 +291,10 @@ struct IntervalSplayTree(IntervalType)
     }
     do
     {
+        // DMD cannot inline this
+        version(LDC) pragma(inline, true);
+        version(GDC) pragma(inline, true);
+
         Node *p = n.parent;
         Node *g = p.parent;
 
@@ -439,8 +375,9 @@ struct IntervalSplayTree(IntervalType)
         // 2. g, p, or n may need to be changed
         // 3. p and g are children of n after left zig-zag or right zig-zag
         // conclusion: updating and percolating upward on both p and g would be wasteful
-        updateMax(p, 1);    // do not bubble up
-        updateMax(g);       // bubble up (default)
+        n.max = g.max;  // take max of prior subtree root (g)
+        updateMax(p);
+        updateMax(g);
     }
 
     // NB if change to class, add 'final'
@@ -627,34 +564,26 @@ struct IntervalSplayTree(IntervalType)
         return current;
     }
 
-    /** Start at Node n, update max from subtrees, and bubble upward
-    
-    Will stop after `bubbleUp` # nodes were processed, or until root node hit 
-    
-    TODO: benchmark with/without bubbleUp param (used only in zig-zag fn to possibly save cycles)
+    /** update Node n's max from subtrees
     
     Params:
-        n = node to update (or from which to begin)
-        bubbleUp =  How many nodes to process recursively upward
-                    (default: -1 => no limit])
+        n = node to update
     */
-    @nogc nothrow
-    void updateMax(Node *n, int bubbleUp = -1) 
+    pragma(inline, true)
+    @safe @nogc nothrow
+    private
+    void updateMax(Node *n) 
     {
         import std.algorithm.comparison : max;
 
-        Node *current = n;
-
-        while (current && bubbleUp--)
+        if (n !is null)
         {
-            int localmax = current.interval.end;
-            if (current.left)
-                localmax = max(current.left.max, localmax);
-            if (current.right)
-                localmax = max(current.right.max, localmax);
-            current.max = localmax;
-
-            current = current.parent;   // ascend
+            int localmax = n.interval.end;
+            if (n.left)
+                localmax = max(n.left.max, localmax);
+            if (n.right)
+                localmax = max(n.right.max, localmax);
+            n.max = localmax;
         }
     }
 

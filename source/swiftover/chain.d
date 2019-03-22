@@ -11,9 +11,14 @@ import std.format;
 import std.range;
 import std.stdio;
 
-import intervaltree.splaytree;
+import intervaltree;    // BasicInterval and overlaps
+version(avl) import intevaltree.avltree;
+else import intervaltree.splaytree;
 
 import dhtslib.htslib.hts_log;
+
+import containers.hashmap;  // contig name -> size
+import containers.unrolledlist;
 
 /// ASCII valued to speed assignment and cmp
 enum STRAND : ubyte
@@ -124,7 +129,7 @@ struct ChainLink
     }
 
     /// Overload <, <=, >, >= for ChainLink/ChainLin; compare query
-	@nogc int opCmp(ref const ChainLink other) const nothrow
+	@safe @nogc int opCmp(ref const ChainLink other) const nothrow
 	{
         /+
 		// Intervals from different contigs are incomparable
@@ -232,7 +237,8 @@ struct Chain
     //bool invertStrand;  /// whether the strand in target and query differ
     byte invert;        /// i ∈ {-1, +1} where -1 => target/query on different strands; +1 => same strand
 
-	ChainLink*[] links;  /// query and target intervals in 1:1 bijective relationship
+	//ChainLink*[] links;  /// query and target intervals in 1:1 bijective relationship
+    UnrolledList!(ChainLink *) links;   /// query and target intervals in 1:1 bijective relationship
 
     static auto hfields = appender!(char[][]);  /// header fields; statically allocated to save GC allocations
     static auto dfields = appender!(int[]);       /// alignment data fields; statically allocated to save GC allocations
@@ -241,7 +247,7 @@ struct Chain
 	this(R)(R lines)
     if (isInputRange!R)
 	{
-        this.links.reserve(8192);
+        //this.links.reserve(8192);
 
         // Example chain header line: 
 		// chain 20851231461 chr1 249250621 + 10000 249240621 chr1 248956422 + 10000 248946422 2
@@ -428,7 +434,14 @@ struct ChainFile
     string destBuild; /// destination assembly, e.g. GRCh38 in an hg19->GRCh38 liftover
     +/
 
-    private IntervalSplayTree!(ChainLink)*[string] chainsByContig; /// AA of contig:string -> Interval Tree
+    /// AA of contig:string -> Interval Tree
+    version(avl)
+        private IntervalAVLTree!(ChainLink)*[string] chainsByContig;
+    else
+        private IntervalSplayTree!(ChainLink)*[string] chainsByContig;
+
+    auto qContigSizes = HashMap!(string, int)(256); /// query (destination build) contigs,
+                                                    /// need for VCF
 
     /// Parse UCSC-format chain file into liftover trees (one tree per source contig)
     this(string fn)
@@ -453,26 +466,43 @@ struct ChainFile
                     debug hts_log_trace(__FUNCTION__, format("Chain: %s", c));
                     
                     // Does this contig exist in the map?
-                    auto tree = this.chainsByContig.require(c.targetName, new IntervalSplayTree!ChainLink);
+                    version(avl)
+                        auto tree = this.chainsByContig.require(c.targetName, new IntervalAVLTree!ChainLink);
+                    else
+                        auto tree = this.chainsByContig.require(c.targetName, new IntervalSplayTree!ChainLink);
                     
                     // Insert all intervals from the chain into the tree
                     foreach(link; c.links)
-                        (*tree).insert(*link);
+                    {
+                        version(avl)    { uint cnt; (*tree).insert( new IntervalTreeNode!ChainLink(*link), cnt ); }
+                        else            (*tree).insert(*link);
+                    }
 
+                    // Record the destination ("query") contig needed for VCF header
+                    this.qContigSizes[c.queryName] = c.querySize;
                 }
                 chainStart = i;
             }
         }
-        // Don't forget the last chain
+        // !!! Don't forget the last chain !!!
         auto c = Chain(chainArray[chainStart .. $]);
         debug hts_log_trace(__FUNCTION__, format("Final Chain: %s", c));
 
         // Does this contig exist in the map?
-        auto tree = this.chainsByContig.require(c.targetName, new IntervalSplayTree!ChainLink);
+        version(avl)
+            auto tree = this.chainsByContig.require(c.targetName, new IntervalAVLTree!ChainLink);
+        else
+            auto tree = this.chainsByContig.require(c.targetName, new IntervalSplayTree!ChainLink);
 
         // Insert all intervals from the chain into the tree
         foreach(link; c.links)
-            (*tree).insert(*link);
+        {
+            version(avl)    { uint cnt; (*tree).insert( new IntervalTreeNode!ChainLink(*link), cnt ); }
+            else            (*tree).insert(*link);
+        }
+
+        // Record the destination ("query") contig needed for VCF header
+        this.qContigSizes[c.queryName] = c.querySize;
 
         debug { // debug-only to speed startup
             foreach(contig; this.chainsByContig.byKey) {
@@ -482,11 +512,13 @@ struct ChainFile
 
         // show me what's in the last accessed tree:
         debug { // debug-only to speed startup
-            while(tree.iteratorNext() !is null)
-            hts_log_trace(__FUNCTION__, format("sorted tree entry: %s", *tree.cur));
-        }
-        // END ChainFile ctor
-    }
+            version(avl) {}
+            else {
+                while(tree.iteratorNext() !is null)
+                hts_log_trace(__FUNCTION__, format("sorted tree entry: %s", *tree.cur));
+            }
+        }  
+    }   // END ChainFile ctor
 
     /** Lift a single coordinate (in zero-based, half-open system),
         mutating function parameters 
@@ -524,11 +556,11 @@ struct ChainFile
         auto o = this.chainsByContig[contig].findOverlapsWith(i);   // returns Node*(s)
 
         // marked as debug because in hot code path
-        debug foreach(x; o) hts_log_trace(__FUNCTION__, format("%s", *x));
+        debug foreach(x; o) hts_log_debug(__FUNCTION__, format("%s", *x));
 
         if (o.length == 0)  // no match
         {
-            debug hts_log_trace(__FUNCTION__, "No match to interval");
+            debug hts_log_debug(__FUNCTION__, "No match to interval");
 
             // -O3 will elide the stack alloc, thanks godbolt.org !
             ChainLink[] ret;
@@ -536,7 +568,7 @@ struct ChainFile
         }
         else if (o.length == 1) // one match
         {
-            debug hts_log_trace(__FUNCTION__, "One match to interval");
+            debug hts_log_debug(__FUNCTION__, "One match to interval");
 
             // intersect makes the chain link comply with bounds of interval
             const auto isect = o.front().interval.intersect(i);
@@ -550,6 +582,8 @@ struct ChainFile
         }
         else    // TODO optimize; return Range
         {
+            debug hts_log_debug(__FUNCTION__, "Multiple matches to interval");
+
             auto isect = o.map!(x => x.interval.intersect(i));
 
             return array(isect);

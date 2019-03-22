@@ -17,6 +17,8 @@ else import intervaltree.splaytree;
 
 import dhtslib.htslib.hts_log;
 
+import containers.unrolledlist;
+
 /// ASCII valued to speed assignment and cmp
 enum STRAND : ubyte
 {
@@ -234,7 +236,8 @@ struct Chain
     //bool invertStrand;  /// whether the strand in target and query differ
     byte invert;        /// i ∈ {-1, +1} where -1 => target/query on different strands; +1 => same strand
 
-	ChainLink*[] links;  /// query and target intervals in 1:1 bijective relationship
+	//ChainLink*[] links;  /// query and target intervals in 1:1 bijective relationship
+    UnrolledList!(ChainLink *) links;   /// query and target intervals in 1:1 bijective relationship
 
     static auto hfields = appender!(char[][]);  /// header fields; statically allocated to save GC allocations
     static auto dfields = appender!(int[]);       /// alignment data fields; statically allocated to save GC allocations
@@ -243,7 +246,7 @@ struct Chain
 	this(R)(R lines)
     if (isInputRange!R)
 	{
-        this.links.reserve(8192);
+        //this.links.reserve(8192);
 
         // Example chain header line: 
 		// chain 20851231461 chr1 249250621 + 10000 249240621 chr1 248956422 + 10000 248946422 2

@@ -7,4 +7,6 @@ void liftVCF(string chainfile, string genomefile, string infile, string outfile,
 {
         auto cf = ChainFile(chainfile);
 
+        
+
 }

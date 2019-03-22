@@ -17,6 +17,7 @@ else import intervaltree.splaytree;
 
 import dhtslib.htslib.hts_log;
 
+import containers.hashmap;  // contig name -> size
 import containers.unrolledlist;
 
 /// ASCII valued to speed assignment and cmp
@@ -439,6 +440,9 @@ struct ChainFile
     else
         private IntervalSplayTree!(ChainLink)*[string] chainsByContig;
 
+    auto qContigSizes = HashMap!(string, int)(256); /// query (destination build) contigs,
+                                                    /// need for VCF
+
     /// Parse UCSC-format chain file into liftover trees (one tree per source contig)
     this(string fn)
     {
@@ -474,11 +478,13 @@ struct ChainFile
                         else            (*tree).insert(*link);
                     }
 
+                    // Record the destination ("query") contig needed for VCF header
+                    this.qContigSizes[c.queryName] = c.querySize;
                 }
                 chainStart = i;
             }
         }
-        // Don't forget the last chain
+        // !!! Don't forget the last chain !!!
         auto c = Chain(chainArray[chainStart .. $]);
         debug hts_log_trace(__FUNCTION__, format("Final Chain: %s", c));
 
@@ -495,6 +501,9 @@ struct ChainFile
             else            (*tree).insert(*link);
         }
 
+        // Record the destination ("query") contig needed for VCF header
+        this.qContigSizes[c.queryName] = c.querySize;
+
         debug { // debug-only to speed startup
             foreach(contig; this.chainsByContig.byKey) {
                 hts_log_trace(__FUNCTION__, format("Contig: %s", contig));
@@ -508,9 +517,8 @@ struct ChainFile
                 while(tree.iteratorNext() !is null)
                 hts_log_trace(__FUNCTION__, format("sorted tree entry: %s", *tree.cur));
             }
-        }
-        // END ChainFile ctor
-    }
+        }  
+    }   // END ChainFile ctor
 
     /** Lift coordinates from one build to another
 

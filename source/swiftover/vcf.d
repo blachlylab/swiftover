@@ -43,6 +43,7 @@ void liftVCF(string chainfile, string genomefile, string infile, string outfile,
     foreach(seq; fo.getHeader.sequences) {
         bcf_hdr_remove(fo.getHeader.hdr, BCF_HL_CTG, toStringz(seq));
     }
+
     alias keysort = (x,y) => contigSort(x.key, y.key);
     foreach(kv; sort!keysort(cf.qContigSizes.byKeyValue.array)) {
         if (!fa.hasSeq(kv.key))
@@ -51,14 +52,17 @@ void liftVCF(string chainfile, string genomefile, string infile, string outfile,
             hts_log_warning(__FUNCTION__,
                 format("🤔 %s: length %d in chainfile, %d in genome. Results may be suspect.",
                 kv.key, kv.value, fa.seqLen(kv.key)));
-        else
-            fo.addTag!"contig"(kv.key, kv.value, "source="~chainfile);   // contig id, length
+        else {
+            auto ret = fo.addTag!"contig"(kv.key, kv.value, "source="~chainfile);   // contig id, length
+            stderr.writeln("wrote " ~ kv.key ~ " with return value ", ret);
+        }
     }
     fo.addFiledate();
     fo.addHeaderLineKV("liftoverProgram", "swiftover");
     fo.addHeaderLineKV("liftoverProgramURL", "https://github.com/blachlylab/swiftover");
     fo.addHeaderLineKV("liftoverChainfile", chainfile);
     fo.addHeaderLineKV("liftoverGenome", genomefile);
+
     fo.writeHeader();
     
     auto fu = VCFWriter(unmatched, fi.vcfhdr);

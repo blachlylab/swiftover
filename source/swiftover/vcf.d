@@ -25,9 +25,9 @@ void liftVCF(string chainfile, string genomefile, string infile, string outfile,
     
     // TODO need dhtslib to support stdin/stdout
 
-    hts_set_log_level(htsLogLevel.HTS_LOG_DEBUG);
-    hts_log_info("liftvcf", infile);
-
+    hts_set_log_level(htsLogLevel.HTS_LOG_INFO);
+    debug hts_set_log_level(htsLogLevel.HTS_LOG_DEBUG);
+    
     auto fi = VCFReader(infile);
     
     /* ouput file
@@ -38,25 +38,39 @@ void liftVCF(string chainfile, string genomefile, string infile, string outfile,
     */
     auto fo = VCFWriter(outfile, fi.vcfhdr);
 
-    stderr.writeln("Contigs from fo (copied from fi)");
-    stderr.writefln("total: %d", fo.getHeader.sequences.length);
+    // Add new INFO flag, "refchg" -- REF allele changed in new build
+    fo.addTag!"INFO"("refchg", 0, "Flag", "REF allele changed in new genome");
+
+    hts_log_info(__FUNCTION__, format("Removing %d contig entries from input VCF", fo.getHeader.sequences.length));
     foreach(seq; fo.getHeader.sequences) {
+        // There is a bug in htslib-1.9, discovered by me
+        // https://github.com/samtools/htslib/issues/842
+        // After removing contig, we cannot re-add one with same name.
         bcf_hdr_remove(fo.getHeader.hdr, BCF_HL_CTG, toStringz(seq));
     }
 
+    int missingInGenome;
+    int newContigsAdded;
     alias keysort = (x,y) => contigSort(x.key, y.key);
     foreach(kv; sort!keysort(cf.qContigSizes.byKeyValue.array)) {
-        if (!fa.hasSeq(kv.key))
-            hts_log_warning(__FUNCTION__, format("❌ %s present in chainfile but not genome.", kv.key));
+        if (!fa.hasSeq(kv.key)) {
+            debug hts_log_debug(__FUNCTION__, format("❌ %s present in chainfile but not genome.", kv.key));
+            missingInGenome++;
+        }
         else if (fa.seqLen(kv.key) != kv.value)
             hts_log_warning(__FUNCTION__,
                 format("🤔 %s: length %d in chainfile, %d in genome. Results may be suspect.",
                 kv.key, kv.value, fa.seqLen(kv.key)));
         else {
-            auto ret = fo.addTag!"contig"(kv.key, kv.value, "source="~chainfile);   // contig id, length
-            stderr.writeln("wrote " ~ kv.key ~ " with return value ", ret);
+            fo.addTag!"contig"(kv.key, kv.value, "source="~chainfile);   // contig id, length
+            newContigsAdded++;
         }
     }
+    if (newContigsAdded)
+        hts_log_info(__FUNCTION__, format("Added %d contig entries from chainfile", newContigsAdded));
+    if (missingInGenome)
+        hts_log_warning(__FUNCTION__, format("%d contigs present in chainfile but not destination genome.", missingInGenome));
+    
     fo.addFiledate();
     fo.addHeaderLineKV("liftoverProgram", "swiftover");
     fo.addHeaderLineKV("liftoverProgramURL", "https://github.com/blachlylab/swiftover");
@@ -90,6 +104,28 @@ void liftVCF(string chainfile, string genomefile, string infile, string outfile,
         }
         else {
             nmatched++;
+
+            // Check reference allele
+            //const auto newRefAllele = fa[rec.chrom, rec.pos .. (rec.pos + rec.refLen)];
+            const auto newRefAllele = fa.fetchSequence(rec.chrom, rec.pos, rec.pos + rec.refLen);
+            auto alleles = rec.allelesAsArray;
+            if (alleles[0] != newRefAllele)
+            {
+                hts_log_warning(__FUNCTION__, format("REF allele mismatch: %s -> %s", alleles[0], newRefAllele));
+                
+                // Check ALT -- TODO, if no REF allele will be range violation
+                foreach(alt; alleles[1 .. $]) {
+                    // TODO, run pluggable INFO field updates
+                }
+
+                // update REF allele (impt to do this after ALT)
+                alleles[0] = newRefAllele;
+                rec.alleles = alleles;
+
+                // Add flag REFCHG
+                //rec.addInfo("refchg", true);
+                bcf_update_info(fo.getHeader.hdr, rec.line, "refchg\0".ptr, null, 1, BCF_HT_FLAG);
+            }
             fo.writeRecord(rec);
         }
     }

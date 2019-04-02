@@ -4,7 +4,7 @@
 
 int main(void)
 {
-    vcfFile *infile = bcf_open("resources/gnomad.chrY.vcf", "r");
+    vcfFile *infile = bcf_open("resources/vcftest.vcf", "r");
     vcfFile *outfile = bcf_open("/tmp/out.vcf", "w");
 
     bcf_hdr_t* infile_hdr = bcf_hdr_read(infile);
@@ -12,6 +12,8 @@ int main(void)
 
     /*     void bcf_hdr_remove(bcf_hdr_t *h, int type, const char *key); */
     bcf_hdr_remove(outfile_hdr, BCF_HL_CTG, "chr3");
+    bcf_hdr_sync(outfile_hdr);
+
     bcf_hdr_append(outfile_hdr, "##contig=<ID=chr333,length=333333>");
     bcf_hdr_append(outfile_hdr, "##contig=<ID=chr3,length=123");
 

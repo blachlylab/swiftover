@@ -28,7 +28,7 @@ void liftVCF(string chainfile, string genomefile, string infile, string outfile,
     hts_set_log_level(htsLogLevel.HTS_LOG_INFO);
     debug hts_set_log_level(htsLogLevel.HTS_LOG_DEBUG);
     
-    auto fi = VCFReader(infile);
+    auto fi = VCFReader(infile, BCF_UN_STR);    // BCF_UN_STR, unpack only thru ALT
     
     /* ouput file
         1. remove contigs
@@ -54,7 +54,7 @@ void liftVCF(string chainfile, string genomefile, string infile, string outfile,
     alias keysort = (x,y) => contigSort(x.key, y.key);
     foreach(kv; sort!keysort(cf.qContigSizes.byKeyValue.array)) {
         if (!fa.hasSeq(kv.key)) {
-            debug hts_log_debug(__FUNCTION__, format("❌ %s present in chainfile but not genome.", kv.key));
+            //debug hts_log_debug(__FUNCTION__, format("❌ %s present in chainfile but not genome.", kv.key));
             missingInGenome++;
         }
         else if (fa.seqLen(kv.key) != kv.value)
@@ -89,6 +89,9 @@ void liftVCF(string chainfile, string genomefile, string infile, string outfile,
 
     foreach(rec; fi)
     {
+        bcf_translate(fo.getHeader.hdr, fi.getHeader.hdr, rec.line);
+        bcf_unpack(rec.line, BCF_UN_ALL);
+
         string contig = rec.chrom;
         auto coord = rec.pos;
 
@@ -123,10 +126,15 @@ void liftVCF(string chainfile, string genomefile, string infile, string outfile,
                 rec.alleles = alleles;
 
                 // Add flag REFCHG
-                //rec.addInfo("refchg", true);
+                //rec.addInfo("refchg", true);  // TODO doesn't work?
                 bcf_update_info(fo.getHeader.hdr, rec.line, "refchg\0".ptr, null, 1, BCF_HT_FLAG);
             }
-            fo.writeRecord(rec);
+            hts_log_debug("foreach", "pre writeRecord");
+            stderr.writeln(*rec.line);
+            //fo.writeRecord(rec);
+            fo.writeRecord(fo.getHeader.hdr, rec.line);
+            hts_log_debug("foreach", "post writeRecord");
+            assert(0);
         }
     }
     

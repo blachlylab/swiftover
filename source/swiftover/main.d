@@ -55,8 +55,8 @@ int main(string[] args)
     debug hts_set_log_level(htsLogLevel.HTS_LOG_DEBUG);
     debug(trace) hts_set_log_level(htsLogLevel.HTS_LOG_TRACE);
 
-    if (!chainfile.exists)
-        throw new FileException("Chainfile does not exist");
+    // if (!chainfile.exists)
+    //     throw new FileException("Chainfile does not exist");
     if (infile != "-" && infile != "" && !infile.exists)
         throw new FileException("Input file does not exist");
     // test write 

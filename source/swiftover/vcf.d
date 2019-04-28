@@ -105,8 +105,10 @@ void liftVCF(
 
     foreach(rec; *fi)
     {
+        // TODO: setting new header after call to bcf_translate is essentially mandatory,
+        // need to wrap these in convenience fn in dhtslib
         bcf_translate(fo.getHeader.hdr, fi.getHeader.hdr, rec.line);
-        //bcf_unpack(rec.line, BCF_UN_ALL);
+        rec.vcfheader = fo.vcfhdr;
 
         string contig = rec.chrom;
         auto coord = rec.pos;

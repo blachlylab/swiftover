@@ -3,6 +3,7 @@ ENSURL  = ftp://ftp.ensembl.org/pub/assembly_mapping/homo_sapiens/GRCh37_to_GRCh
 
 CHAINS = resources/hg19ToHg38.over.chain.gz resources/GRCh37_to_GRCh38.chain.gz
 GNOMADEXOMES=gnomad.exomes.r2.1.1.sites.vcf.bgz
+GNOMADEXOMESTBI = $(GNOMADEXOMES).tbi
 
 # TODO make urls platform specific (linux, macosx etc.)
 
@@ -17,10 +18,13 @@ resources/GRCh37_to_GRCh38.chain.gz:
 
 
 .PHONY: gnomad
-gnomad:	resources/${GNOMADEXOMES}
+gnomad:	resources/$(GNOMADEXOMES) resources/$(GNOMADEXCOMESTBI)
 
-resources/${GNOMADEXOMES}:
+resources/$(GNOMADEXOMES):
 	cd resources; wget https://storage.googleapis.com/gnomad-public/release/2.1.1/vcf/exomes/gnomad.exomes.r2.1.1.sites.vcf.bgz
+
+resources/$(GNOMADEXOMESTBI):
+	cd resources; wget https://storage.googleapis.com/gnomad-public/release/2.1.1/vcf/exomes/gnomad.exomes.r2.1.1.sites.vcf.bgz.tbi
 
 utils: liftOver liftOverMerge liftUp
 	chmod +x liftOver liftOverMerge liftUp

@@ -1,3 +1,4 @@
+// copy one vcf file to another
 #include <stdio.h>
 
 #include <htslib/vcf.h>
@@ -23,17 +24,17 @@ int main(void)
 
     while( bcf_read(infile, infile_hdr, b) >= 0 )
     {
-	bcf1_t *bnew = bcf_dup(b);
- 	int ret = bcf_unpack(bnew, MAX_UNPACK);
+	//bcf1_t *bnew = bcf_dup(b);
+ 	int ret = bcf_unpack(b, MAX_UNPACK);
 	
-	bcf_translate(outfile_hdr, infile_hdr, bnew);
+	bcf_translate(outfile_hdr, infile_hdr, b);
 
-	if (bnew->d.n_flt > 1) break;
+	//if (bnew->d.n_flt > 1) break;
 
-	bcf_write(outfile, outfile_hdr, bnew);
+	bcf_write(outfile, outfile_hdr, b);	// SIGSEGV in this call tree
 
-	bcf_destroy(bnew);
-	bcf_empty(b);
+	//bcf_destroy(bnew);
+	//bcf_empty(b);
     }
     
     bcf_close(infile);

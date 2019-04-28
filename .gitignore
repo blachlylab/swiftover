@@ -32,4 +32,4 @@ docs/
 profilegc.log
 
 # resources/test files
-resource/*
+resources/*

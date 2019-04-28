@@ -30,3 +30,6 @@ docs/
 
 # profiling
 profilegc.log
+
+# resources/test files
+resource/*

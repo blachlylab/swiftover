@@ -19,9 +19,20 @@ Chain file: Obtain from UCSC or Ensembl:
 
 [ftp://ftp.ensembl.org/pub/assembly_mapping/](ftp://ftp.ensembl.org/pub/assembly_mapping/)
 
-Swiftover needs uncompressed chain files.
+If you are working with human data, you can quickly grab hg19 to hg38
+(UCSC-style contig naming: chr1, chrM) and GRCh37 to GRCh38
+(Ensembl-style contig naming: 1, MT) by issuing `make chains`.
+Chainfiles will be placed in `resources/`, and for the time being need to be un-gzipped.
+
+Swiftover needs uncompressed chain files. TODO: Will add gzip reader.
 
 ## File Formats
+
+It is critical that the contigs appearing in the _source_ file have an entry in the chain;
+otherwise the program will terminate with `range violation`. Adding error checking/handling
+for this is possible, but as the check would be run once for every row of input, it could
+unnecessarily slow the liftover. 
+
 ### BED
 
 All BED formats supported, including column 6 (strand) and columns 7-8 (thickStart/thickEnd).
@@ -31,7 +42,15 @@ in the destination coordinates, whereas UCSC liftOver does.
 
 ### VCF
 
-_WIP_
+VCF liftover works as you would expect. 😁
+
+An extra INFO column tag `refchg` is added when the reference allele changes between the
+source and destination genomes.
+
+*CAVEATS:* INFO and FORMAT column tags related to allele frequencies and calculations may
+no longer be accurate in the destination geneome build (due to subtle mapping differences),
+but _especially_ if the reference allele has changed. We will likely add cmdline flag to strip
+all INFO/FORMAT tags, followed later by a plugin to recalculate select values (e.g. when refchg).
 
 ## Compiling from source
 

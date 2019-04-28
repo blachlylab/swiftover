@@ -14,8 +14,16 @@ import dhtslib.htslib.vcf;
 import dhtslib.htslib.hts_log;
 import dhtslib.faidx;
 
-///
-void liftVCF(string chainfile, string genomefile, string infile, string outfile, string unmatched)
+/** lift VCF file from src->dst (target->query)
+
+    Params:
+        chainfile   UCSC format chain file 
+
+*/
+void liftVCF(
+    string chainfile, string genomefile,
+    string infile, string outfile, string unmatched,
+    bool removeTags = false)
 {
     import std.string : toStringz;
     
@@ -28,7 +36,11 @@ void liftVCF(string chainfile, string genomefile, string infile, string outfile,
     hts_set_log_level(htsLogLevel.HTS_LOG_INFO);
     debug hts_set_log_level(htsLogLevel.HTS_LOG_DEBUG);
     
-    auto fi = VCFReader(infile, BCF_UN_STR);    // BCF_UN_STR, unpack only thru ALT
+    VCFReader* fi;  // ptr since decl and init inside if/else scope makes unavailable later
+    if (removeTags)
+        fi = new VCFReader(infile, BCF_UN_FLT);    // BCF_UN_FLT, unpacks only thru FILTER (skips INFO, FORMAT...)
+    else
+        fi = new VCFReader(infile, BCF_UN_ALL);    //
     
     /* ouput file
         1. remove contigs
@@ -41,14 +53,18 @@ void liftVCF(string chainfile, string genomefile, string infile, string outfile,
     // Add new INFO flag, "refchg" -- REF allele changed in new build
     fo.addTag!"INFO"("refchg", 0, "Flag", "REF allele changed in new genome");
 
-    hts_log_info(__FUNCTION__, format("Removing %d contig entries from input VCF", fo.getHeader.sequences.length));
-    foreach(seq; fo.getHeader.sequences) {
-        // There is a bug in htslib-1.9, discovered by me
-        // https://github.com/samtools/htslib/issues/842
-        // After removing contig, we cannot re-add one with same name.
+    //hts_log_info(__FUNCTION__, format("Removing %d contig entries from input VCF", fo.getHeader.sequences.length));
+    // There is a bug in htslib-1.9, discovered by me
+    // https://github.com/samtools/htslib/issues/842
+    // After removing contig, we cannot re-add one with same name.
+    /*foreach(seq; fo.getHeader.sequences) {
         bcf_hdr_remove(fo.getHeader.hdr, BCF_HL_CTG, toStringz(seq));
-    }
+    }*/
+    // After careful consideration, I am disabling removal of "original" contigs from the output VCF
+    // as not doing so makes the notion of when and how to call bcf_translate extremely complicated
+    //bcf_hdr_remove(fo.getHeader.hdr, CF_HL_CTG, null);  // remove all contigs
 
+    // Add contigs from chainfile to output VCF
     int missingInGenome;
     int newContigsAdded;
     alias keysort = (x,y) => contigSort(x.key, y.key);
@@ -87,10 +103,10 @@ void liftVCF(string chainfile, string genomefile, string infile, string outfile,
     
     int nmatched, nunmatched;
 
-    foreach(rec; fi)
+    foreach(rec; *fi)
     {
         bcf_translate(fo.getHeader.hdr, fi.getHeader.hdr, rec.line);
-        bcf_unpack(rec.line, BCF_UN_ALL);
+        //bcf_unpack(rec.line, BCF_UN_ALL);
 
         string contig = rec.chrom;
         auto coord = rec.pos;
@@ -129,12 +145,11 @@ void liftVCF(string chainfile, string genomefile, string infile, string outfile,
                 //rec.addInfo("refchg", true);  // TODO doesn't work?
                 bcf_update_info(fo.getHeader.hdr, rec.line, "refchg\0".ptr, null, 1, BCF_HT_FLAG);
             }
-            hts_log_debug("foreach", "pre writeRecord");
-            stderr.writeln(*rec.line);
-            //fo.writeRecord(rec);
-            fo.writeRecord(fo.getHeader.hdr, rec.line);
-            hts_log_debug("foreach", "post writeRecord");
-            assert(0);
+            //hts_log_debug("foreach", "pre writeRecord");
+            //stderr.writeln(*rec.line);
+            fo.writeRecord(rec);
+            //fo.writeRecord(fo.getHeader.hdr, rec.line);
+            //hts_log_debug("foreach", "post writeRecord");
         }
     }
     

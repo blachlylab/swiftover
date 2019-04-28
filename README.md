@@ -31,7 +31,10 @@ Swiftover needs uncompressed chain files. TODO: Will add gzip reader.
 It is critical that the contigs appearing in the _source_ file have an entry in the chain;
 otherwise the program will terminate with `range violation`. Adding error checking/handling
 for this is possible, but as the check would be run once for every row of input, it could
-unnecessarily slow the liftover. 
+unnecessarily slow the liftover.
+
+Likewise, in VCF mode, contig naming must be consistent across input VCF, chain file, and
+destination genome.
 
 ### BED
 

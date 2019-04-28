@@ -9,6 +9,11 @@
 		"dhtslib": { "path": "../dhtslib" }
 	},
 	"buildRequirements": [ "allowWarnings" ],
+        "sourceFiles": [ "../htslib/libhts.a" ],
+	"lflags": ["-lcurl", "-lbz2", "-llzma", "-lcrypto" ],
+	"subConfigurations": {
+		"dhtslib": "source-static2"
+	},
 	"configurations": [
 		{
 			"name": "splaytree",

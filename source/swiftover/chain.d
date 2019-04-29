@@ -16,6 +16,7 @@ version(avl) import intevaltree.avltree;
 else import intervaltree.splaytree;
 
 import dhtslib.htslib.hts_log;
+import dhtslib.bgzf:BGZFile;
 
 import containers.hashmap;  // contig name -> size
 import containers.unrolledlist;
@@ -446,13 +447,10 @@ struct ChainFile
     /// Parse UCSC-format chain file into liftover trees (one tree per source contig)
     this(string fn)
     {
-        if (!fn.exists)
-            throw new FileException("File does not exist");
-
         this.qContigSizes = HashMap!(string,int)(256);
 
         // TODO: speed this pig up
-        auto chainArray = fn.File.byLineCopy().array();
+        auto chainArray = fn.BGZFile.array();
 
         long chainStart;
         long chainEnd;

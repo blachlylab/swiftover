@@ -6,24 +6,29 @@
 	"license": "GPL-3.0",
 	"dependencies": {
 		"emsi_containers": "~>0.8.0-alpha.12",
-		"dhtslib": { "path": "../dhtslib" }
+		"dhtslib": { "path": "../dhtslib" },
+        "intervaltree": {"path": "../intervaltree"}
 	},
 	"buildRequirements": [ "allowWarnings" ],
-        "sourceFiles": [ "../htslib/libhts.a" ],
-	"lflags": ["-lcurl", "-lbz2", "-llzma", "-lcrypto" ],
+	"lflags": ["-lcurl", "-lbz2", "-llzma"  ],
 	"subConfigurations": {
-		"dhtslib": "source-static2"
+		"dhtslib": "source"
 	},
 	"configurations": [
 		{
 			"name": "splaytree",
-			"version": "splay",
+			"versions": ["splay", "splaytree"],
 			"targetType": "executable"
 		},
 		{
 			"name": "avltree",
-			"version": "avl",
+			"versions": [ "avl", "avltree" ],
 			"targetType": "executable"
-		}
+		},
+        {
+            "name": "iitree",
+            "versions": [ "iitree" ],
+            "targetType": "executable"
+        }
 	]
 }

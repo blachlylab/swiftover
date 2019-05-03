@@ -10,7 +10,7 @@ Copyright: Copyright (c) 2019 James Blachly
 License for personal, academic, and noncomercial use: Apache 2.0
 License for commercial use: Negotiable; contact author
 */
-module intervaltree.splaytree;
+module intervaltreex.splaytree;
 
 import intervaltree : BasicInterval, overlaps;
 

@@ -1,4 +1,4 @@
-module intervaltree;
+module intervaltreex;
 
 /// Interval with zero-based, half-open coordinates
 /// Any other Interval struct (or class?) OK

@@ -13,7 +13,8 @@ import std.stdio;
 
 import intervaltree;    // BasicInterval and overlaps
 version(avl) import intevaltree.avltree;
-else import intervaltree.splaytree;
+version(splay) import intervaltree.splaytree;
+version(iitree) import intervaltree.cgranges;
 
 import dhtslib.htslib.hts_log;
 
@@ -437,7 +438,7 @@ struct ChainFile
     /// AA of contig:string -> Interval Tree
     version(avl)
         private IntervalAVLTree!(ChainLink)*[string] chainsByContig;
-    else
+    version(splay)
         private IntervalSplayTree!(ChainLink)*[string] chainsByContig;
 
     HashMap!(string,int) qContigSizes;  /// query (destination build) contigs,
@@ -471,14 +472,14 @@ struct ChainFile
                     // Does this contig exist in the map?
                     version(avl)
                         auto tree = this.chainsByContig.require(c.targetName, new IntervalAVLTree!ChainLink);
-                    else
+                    version(splay)
                         auto tree = this.chainsByContig.require(c.targetName, new IntervalSplayTree!ChainLink);
                     
                     // Insert all intervals from the chain into the tree
                     foreach(link; *c.links)
                     {
                         version(avl)    { uint cnt; (*tree).insert( new IntervalTreeNode!ChainLink(*link), cnt ); }
-                        else            (*tree).insert(*link);
+                        version(splay)  (*tree).insert(*link);
                     }
 
                     // Record the destination ("query") contig needed for VCF header
@@ -494,14 +495,14 @@ struct ChainFile
         // Does this contig exist in the map?
         version(avl)
             auto tree = this.chainsByContig.require(c.targetName, new IntervalAVLTree!ChainLink);
-        else
+        version(splay)
             auto tree = this.chainsByContig.require(c.targetName, new IntervalSplayTree!ChainLink);
 
         // Insert all intervals from the chain into the tree
         foreach(link; *c.links)
         {
             version(avl)    { uint cnt; (*tree).insert( new IntervalTreeNode!ChainLink(*link), cnt ); }
-            else            (*tree).insert(*link);
+            version(splay)  (*tree).insert(*link);
         }
 
         // Record the destination ("query") contig needed for VCF header
@@ -587,7 +588,8 @@ struct ChainFile
         {
             debug hts_log_debug(__FUNCTION__, "Multiple matches to interval");
 
-            auto isect = o.map!(x => x.interval.intersect(i));
+            // [] needed for UnrolledList (opSlice to return Range over the container); was not needed when dynamic array
+            auto isect = o[].map!(x => x.interval.intersect(i));
 
             return array(isect);
         }

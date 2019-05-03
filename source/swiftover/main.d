@@ -45,7 +45,8 @@ int main(string[] args)
     if (usage.helpWanted)
     {
         version(avl) enum treeTypeString = " (version: AVL trees)";
-        else enum treeTypeString = " (version: splay trees)";
+        version(splay) enum treeTypeString = " (version: splay trees)";
+        else enum treeTypeString = " (version: ???)";
 
         defaultGetoptPrinter("🚀 swift liftover" ~ treeTypeString,
             usage.options);

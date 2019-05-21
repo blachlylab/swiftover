@@ -18,12 +18,15 @@
 /liftUp
 /swiftover
 /swiftover-test-library
+unpack_test
+vcftest
 
 # DUB
 .dub
 docs.json
 __dummy.html
 docs/
+dub.selections.json
 
 # Code coverage
 *.lst
@@ -33,3 +36,5 @@ profilegc.log
 
 # resources/test files
 resources/*
+
+.vscode

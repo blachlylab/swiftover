@@ -624,8 +624,8 @@ struct ChainFile
             version(splay)  auto isect = o[].map!(x => x.interval.intersect(i));
             version(iitree) auto isect = o[].map!(x => intersect(*cast(ChainLink*)x.interval, i));  // I wish there were a better solution but since we're using void * I cannot take advantage of the type system
 
-            return [];
-            //return array(isect);
+            //return [];
+            return array(isect);
         }
     }
 }
@@ -639,7 +639,7 @@ struct ChainFile
 /// The intersection is computed on the original coordinates, then
 ///  the query (destination) and target (original) coords are updated
 pragma(inline, true)
-ChainLink intersect(IntervalType)(ref ChainLink link, const IntervalType other)
+ChainLink intersect(IntervalType)(ChainLink link, const IntervalType other)
 if (__traits(hasMember, IntervalType, "start") &&
     __traits(hasMember, IntervalType, "end"))
 {

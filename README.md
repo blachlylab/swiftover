@@ -1,15 +1,25 @@
-# Swift Liftover
+![swiftover logo](swiftover_logo1x.png)
 
-## Quickstart
+# Superfast Liftover with Splay Trees
 
-`./swiftover -t bed -c chainfile.chain -i input.bed -u unmatched.bed > output.bed`
+See our preprint here: 
+
+Please star our repo and cite our manuscript! It makes a big difference in grant applications.
 
 ## Background and Motivation
 
 Our goal is to be at least as fast as Jim Kent's seminal "liftOver" tool.
-We further hypothesize that specifically for sorted genome intervals,
-the implicit predictive caching of splay trees will outperform other
-tree structures.
+We hypothesize that specifically for sorted genome intervals,
+the implicit predictive caching of splay trees outperforms other
+data structures.
+
+## Installation
+
+Precompiled binaries are available on the releases page. These binaries are statically linked against htslib; a system installation of htslib is not required.
+
+## Quickstart
+
+`./swiftover -t bed -c chainfile.chain -i input.bed -u unmatched.bed > output.bed`
 
 ## Requirements
 
@@ -41,11 +51,15 @@ destination genome.
 All BED formats supported, including column 6 (strand) and columns 7-8 (thickStart/thickEnd).
 
 *CAVEATS:* swiftover does not join intervals that are discontiguous
-in the destination coordinates, whereas UCSC liftOver does.
+in the destination coordinates, whereas UCSC liftOver does by default. We feel that discontiguous intervals better represent to the user the relationship between source and destination sequence.
 
 ### VCF
 
 VCF liftover works as you would expect. 😁
+
+Lifting a VCF file to a new genome build additionally requres a FASTA file of the new/destination genome. If it is not already faidx indexed, an index will be created automatically. If no .fai index already exists and swiftover does not have write permission to the directory containing the genome, execution will fail.
+
+**Reference allele change:** Occasionally, the reference allele may differ even at equivalent coordinates in different genome builds. When swiftover detects this, it will update the REF column of the VCF record and add the tag **refchg** to the INFO column. These records can then be filtered by downstream tools if necessary (e.g., `bcftools view -i 'INFO/refchg=1'`)
 
 An extra INFO column tag `refchg` is added when the reference allele changes between the
 source and destination genomes.
@@ -57,9 +71,10 @@ all INFO/FORMAT tags, followed later by a plugin to recalculate select values (e
 
 ## Compiling from source
 
-DMD codegen is poor, and execution is too slow. Use LDC2 and `dub -b=release` for > 100% speedup.
+DMD codegen can be poor compared to LDC and GDC, with execution too slow to compete with `liftover`.
+Use LDC2 and `dub -b=release` for > 100% speedup.
 
-when using LDC2, or when using the GOLD linker (instead of traditional GNU ld), you'll need to make sure
+**htslib:** when using LDC2, or when using the GOLD linker (instead of traditional GNU ld), you'll need to make sure
 that the linker can find libhts, which is often installed in `/usr/local/lib`. GOLD does not search there
 by default, nor does it examine `LD_LIBRARY_PATH`. It does, however, search `LIBRARY_PATH`, so add
 `export LIBRARY_PATH=/usr/local/lib` to build scripts or run before dub build.

@@ -253,6 +253,9 @@ struct Chain
         // Example chain header line: 
 		// chain 20851231461 chr1 249250621 + 10000 249240621 chr1 248956422 + 10000 248946422 2
 		// assumes no errors in chain line
+        // "When the strand value is "-", position coordinates
+        // are listed in terms of the reverse-complemented sequence."
+        // (https://genome.ucsc.edu/goldenpath/help/chain.html)
         this.hfields.clear;
         this.hfields.put(lines.front().dup.splitter(" "));
         assert(this.hfields.data[0] == "chain");
@@ -261,15 +264,21 @@ struct Chain
         this.targetName = this.hfields.data[2].idup;
         this.targetSize = this.hfields.data[3].to!int;
         this.targetStrand = this.hfields.data[4][0];
-        this.targetStart = this.hfields.data[5].to!int;
-        this.targetEnd = this.hfields.data[6].to!int;
+        if (this.targetStrand == '+')
+        {
+            this.targetStart = this.hfields.data[5].to!int;
+            this.targetEnd = this.hfields.data[6].to!int;
+        }
+        else
+        {
+            // in this case start > end
+            this.targetStart = this.targetSize - this.hfields.data[5].to!int;
+            this.targetEnd = this.targetSize - this.hfields.data[6].to!int;
+        }
 
         this.queryName = this.hfields.data[7].idup;
         this.querySize = this.hfields.data[8].to!int;
         this.queryStrand = this.hfields.data[9][0];
-        // "When the strand value is "-", position coordinates
-        // are listed in terms of the reverse-complemented sequence."
-        // (https://genome.ucsc.edu/goldenpath/help/chain.html)
         if (this.queryStrand == '+')
         {
             this.queryStart = this.hfields.data[10].to!int;
@@ -374,8 +383,11 @@ struct Chain
         assert(this.targetName != "");
         assert(this.targetSize > 0);
         assert(this.targetStrand == '+' || this.targetStrand == '-');
-        assert(this.targetStart < this.targetEnd);
-
+        if (this.targetStrand == '+')
+            assert(this.targetStart < this.targetEnd);
+        else
+            assert(this.targetStart > this.targetEnd);
+        
         assert(this.queryName != "");
         assert(this.querySize > 0);
         assert(this.queryStrand == '+' || this.queryStrand == '-');

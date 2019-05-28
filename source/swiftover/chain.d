@@ -142,7 +142,11 @@ struct ChainLink
 		else if(this.start > other.start) return 1;
 		else if(this.start == other.start && this.end < other.end) return -1;	// comes third as should be less common
 		else if(this.start == other.start && this.end > other.end) return 1;
-		else return 0;	// would be reached in case of equality (although we do not expect)
+
+        // unlikely codepath
+        // see: https://github.com/blachlylab/swiftover/issues/12
+        else return this.qStart - other.qStart;
+		//else return 0;	// would be reached in case of equality (although we do not expect)
 	}
 	/// Overload <, <=, >, >= for ChainLink/int 
 	@nogc int opCmp(const int x) const nothrow

@@ -73,6 +73,9 @@ int main(string[] args)
         fo.close();
     }
 
+    if (unmatched == "")
+        throw new Exception("<unmatched> output file required");
+    
     switch(fileType)
     {
         case "bed":

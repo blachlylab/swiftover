@@ -591,7 +591,7 @@ struct ChainFile
 
         Returns:    number of results (0 or 1)
     */
-    int liftCoordOnly(string contig, ref int coord)
+    int liftCoordOnly(const(char)[] contig, ref int coord)
     {
         auto i = BasicInterval(coord, coord + 1);
         version(avl)    auto o = this.chainsByContig[contig].findOverlapsWith(i);   // returns Node*
@@ -620,7 +620,7 @@ struct ChainFile
                     Initially was ChainLink, then ChainInterval, then ChainLink again
                     because we need strandInvert *and* delta *and* source/dest
     */
-    ChainLink[] lift(string contig, int start, int end) // can't be const method since findOverlapsWith mutates tree
+    ChainLink[] lift(const(char)[] contig, int start, int end) // can't be const method since findOverlapsWith mutates tree
     {
         auto i = BasicInterval(start, end);
         version(avl)    auto o = this.chainsByContig[contig].findOverlapsWith(i);   // returns Node*(s)

@@ -100,12 +100,13 @@ void liftBED(string chainfile, string infile, string outfile, string unmatched)
 
         const auto numf = fields.data.length;
 
-        string contig = fields.data[0].idup;
+        // not sure if the .idup copy and extra storage is elided by compiler but I replaced 'contig's 2 instances with fields.data[0] directly
+        //string contig = fields.data[0].idup;
         int start = fields.data[1].to!int;
         int end = fields.data[2].to!int;
 
         // array (TODO: range) of matches as ChainLink(s)
-        auto trimmedLinks = cf.lift(contig, start, end);
+        auto trimmedLinks = cf.lift(fields.data[0], start, end);
 
         int thickStart;
         int thickEnd;
@@ -118,11 +119,10 @@ void liftBED(string chainfile, string infile, string outfile, string unmatched)
                 assert(thickEnd > thickStart);
                 hasThickInterval = true;
                 // perform single coordinate liftovers of thickStart/thickEnd
-                if (!cf.liftCoordOnly(contig, thickStart) || !cf.liftCoordOnly(contig, thickEnd)) hasThickInterval = false;
-                // TODO: need to somehow label these rows; it would be too expensive to search for nearest thickStart/End
-                debug if (!hasThickInterval) writeln("Triggered hasThickInterval = false for ", thickStart, " ", thickEnd);
-                // TODO, can we speed this by just checking link.invert and executing conditionally?
-                orderStartEnd(thickStart, thickEnd);
+                if (!cf.liftCoordOnly(fields.data[0], thickStart) ||
+                    !cf.liftCoordOnly(fields.data[0], thickEnd)) hasThickInterval = false;
+                // TODO: need to somehow label these rows [those losing their thickInterval]; it would be too expensive to search for nearest thickStart/End
+                else orderStartEnd(thickStart, thickEnd);    // can't check link.invert and conditionally swap them because link.invert not available until below
             }
         }
 

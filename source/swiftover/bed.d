@@ -107,44 +107,36 @@ void liftBED(string chainfile, string infile, string outfile, string unmatched)
         // array (TODO: range) of matches as ChainLink(s)
         auto trimmedLinks = cf.lift(contig, start, end);
 
+        int thickStart;
+        int thickEnd;
+        bool hasThickInterval;
+        if (numf >= 8) {
+            thickStart = fields.data[6].to!int;
+            thickEnd = fields.data[7].to!int;
+
+            if (thickStart != thickEnd) {
+                assert(thickEnd > thickStart);
+                hasThickInterval = true;
+                // perform single coordinate liftovers of thickStart/thickEnd
+                if (!cf.liftCoordOnly(contig, thickStart) || !cf.liftCoordOnly(contig, thickEnd)) hasThickInterval = false;
+                // TODO: need to somehow label these rows; it would be too expensive to search for nearest thickStart/End
+                debug if (!hasThickInterval) writeln("Triggered hasThickInterval = false for ", thickStart, " ", thickEnd);
+                // TODO, can we speed this by just checking link.invert and executing conditionally?
+                orderStartEnd(thickStart, thickEnd);
+            }
+        }
+
         if (trimmedLinks.length == 0)
-            fu.writef("%s\n", fields.data.join("\t"));
-        else
+            fu.writef("%s\n", fields.data.join("\t"));  // Write to unmatched file
+        else // One or more resulting output intervals
         {
+            // multiple output intervals could be returned in a random order; sort
             alias querySort = (x,y) => x.qStart < y.qStart;
             foreach(link; sort!querySort(trimmedLinks))
             {
-                int thickStartOffset, thickSize;
-
                 fields.data[0] = link.qContig.dup;
                 start = link.qStart;
                 end   = link.qEnd;
-
-                // BED col 7 (idx 6): thickStart
-                // BED col 8 (idx 7): thickEnd
-                // Work on thickStart(col 7)/thickEnd(col 8) comes first because we need original start/End values
-                if (numf >= 8) {
-                    // UCSC: "When there is no thick part, thickStart and thickEnd are usually set to the chromStart position."
-                    if (fields.data[6] == fields.data[7]) {
-                        fields.data[6] = start.toChars.array;
-                        fields.data[7] = start.toChars.array;
-                    }
-                    else {
-                        // Because thickStart/thickEnd must lie within the bounds [col2,col3)
-                        // we can save a costly(???) extra lookup to the IntervalTree
-                        thickStartOffset = fields.data[6].to!int -
-                                                fields.data[1].to!int;
-                        thickSize = fields.data[7].to!int -
-                                                fields.data[6].to!int;
-
-                        auto trimmedThickStart = start + link.invert * thickStartOffset;
-                        auto trimmedThickEnd   = trimmedThickStart + link.invert * thickSize;
-                        orderStartEnd(trimmedThickStart, trimmedThickEnd);
-
-                        fields.data[6] = trimmedThickStart.toChars.array;
-                        fields.data[7] = trimmedThickEnd.toChars.array; 
-                    }
-                }
 
                 orderStartEnd(start, end);              // if invert, start > end, so swap
                 fields.data[1] = start.toChars.array;   // 67% time vs .text.dup;
@@ -153,6 +145,30 @@ void liftBED(string chainfile, string infile, string outfile, string unmatched)
                 // BED col 6: strand
                 if (numf >= 6) fields.data[5][0] = STRAND_TABLE[ fields.data[5][0] + link.invert ];
 
+                if (numf >= 8) {
+                    // UCSC: "When there is no thick part, thickStart and thickEnd are usually set to the chromStart position."
+                    if (!hasThickInterval || thickStart >= end || thickEnd <= start) {
+                        fields.data[6] = fields.data[1].dup;    // (== start == link.qStart)
+                        fields.data[7] = fields.data[1].dup;    // (== start == link.qStart)
+                    }
+                    else {
+                        // There is a thick interval, either overlapping at front, fully contained, or overlapping at back
+                        assert(thickStart < end);
+                        assert(thickEnd > start);
+                        
+                        if (thickStart < start) {
+                            fields.data[6] = start.toChars.array;
+                        } else {
+                            fields.data[6] = thickStart.toChars.array;
+                        }
+                        if (thickEnd > end) {
+                            fields.data[7] = end.toChars.array;
+                        } else {
+                            fields.data[7] = thickEnd.toChars.array;
+                        }
+                    }
+
+                } // end if (numf >= 8)
                 fo.writef("%s\n", fields.data.join("\t"));
             }
         }

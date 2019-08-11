@@ -583,6 +583,35 @@ struct ChainFile
         }
     }
 
+    /** Lift a single coordinate (in zero-based, half-open system),
+        _mutating only int function parameter_
+
+        This special case is for when we already know the destination contig,
+        as in BED file thickStart/thickEnd. Saves copying contig when called repeatedly.
+
+        Returns:    number of results (0 or 1)
+    */
+    int liftCoordOnly(string contig, ref int coord)
+    {
+        auto i = BasicInterval(coord, coord + 1);
+        version(avl)    auto o = this.chainsByContig[contig].findOverlapsWith(i);   // returns Node*
+        version(splay)  auto o = this.chainsByContig[contig].findOverlapsWith(i);   // returns Node*
+        version(iitree) auto o = this.chainsByContig.findOverlapsWith(contig, i);
+
+        const auto nres = o.length;
+        if (!nres) return 0;
+        else {
+            version(avl)    const auto isect = o.front().interval.intersect(i);
+            version(splay)  const auto isect = o.front().interval.intersect(i);
+            version(iitree) const auto isect = intersect(*cast(ChainLink*)o.front().interval, i);   // I wish there were a better solution but since we're using void * I cannot take advantage of the type system
+
+            // interval is type ChainLink
+            //contig = isect.qContig;
+            coord = isect.qStart;
+            return 1;
+        }
+    }
+
     /** Lift coordinates from one build to another
 
         TODO: error handling (at cost of speed)

@@ -132,6 +132,7 @@ void liftBED(string chainfile, string infile, string outfile, string unmatched)
         else // One or more resulting output intervals
         {
             // multiple output intervals could be returned in a random order; sort
+            // IMPLEMENTATION NOTE: occasionally there will be output intervals with same qStart but different qEnd; order is undefined
             alias querySort = (x,y) => x.qStart < y.qStart;
             foreach(link; sort!querySort(trimmedLinks))
             {

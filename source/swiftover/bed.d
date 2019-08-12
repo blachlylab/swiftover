@@ -122,6 +122,7 @@ void liftBED(string chainfile, string infile, string outfile, string unmatched)
                 if (!cf.liftCoordOnly(fields.data[0], thickStart) ||
                     !cf.liftCoordOnly(fields.data[0], thickEnd)) hasThickInterval = false;
                 // TODO: need to somehow label these rows [those losing their thickInterval]; it would be too expensive to search for nearest thickStart/End
+                // I believe this would correspond to liftOver's -fudgeThick option
                 else orderStartEnd(thickStart, thickEnd);    // can't check link.invert and conditionally swap them because link.invert not available until below
             }
         }

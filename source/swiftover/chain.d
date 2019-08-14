@@ -14,7 +14,7 @@ import std.stdio;
 import intervaltree;    // BasicInterval and overlaps
 version(avl) import intervaltree.avltree;
 version(splay) import intervaltree.splaytree;
-version(iitree) import intervaltree.cgranges;
+version(iitree) import intervaltree.iitree;
 
 import dhtslib.htslib.hts_log;
 
@@ -465,6 +465,8 @@ struct ChainFile
     /// Parse UCSC-format chain file into liftover trees (one tree per source contig)
     this(string fn)
     {
+        import intervaltree.cgranges : cr_init;
+
         if (!fn.exists)
             throw new FileException("File does not exist");
 

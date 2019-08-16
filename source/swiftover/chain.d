@@ -690,7 +690,6 @@ ChainLink intersect(IntervalType)(ChainLink link, const IntervalType other)
 if (__traits(hasMember, IntervalType, "start") &&
     __traits(hasMember, IntervalType, "end"))
 {
-    version(iitree) debug hts_log_debug(__FUNCTION__, format("start: %d\tend:   %d", link.start, link.end));
     // Trimming is "inwards", i.e., ===== -> -===-
     const auto trimmedStart = max(link.start, other.start);
     const auto trimmedEnd   = min(link.end,   other.end);

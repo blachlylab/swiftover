@@ -132,7 +132,7 @@ void liftVCF(
             auto alleles = rec.allelesAsArray;
             if (alleles[0] != newRefAllele)
             {
-                hts_log_warning(__FUNCTION__, format("REF allele mismatch: %s -> %s", alleles[0], newRefAllele));
+                //hts_log_warning(__FUNCTION__, format("REF allele mismatch: %s -> %s", alleles[0], newRefAllele));
                 
                 // Check ALT -- TODO, if no REF allele will be range violation
                 foreach(alt; alleles[1 .. $]) {

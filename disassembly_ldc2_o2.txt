@@ -1,0 +1,152 @@
+james@ubuntu18:/mnt/scratch/source/swiftover$ lldb-8 -- ./swiftover -t vcf -c resources/GRCh37_to_GRCh38.chain -g ../ref/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz -i ../ref/gnomad.exomes.r2.1.1.sites.21.vcf.gz -u /dev/null -o /dev/null
+(lldb) target create "./swiftover"
+Current executable set to './swiftover' (x86_64).
+(lldb) settings set -- target.run-args  "-t" "vcf" "-c" "resources/GRCh37_to_GRCh38.chain" "-g" "../ref/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz" "-i" "../ref/gnomad.exomes.r2.1.1.sites.21.vcf.gz" "-u" "/dev/null" "-o" "/dev/null"
+(lldb) b vcf.d:213
+Breakpoint 1: where = swiftover`_D7dhtslib3vcf9VCFRecord5chromMFNdAyaZv + 20 at vcf.d:213:9, address = 0x000000000010cdd4
+(lldb) r
+Process 26932 launched: '/mnt/scratch/source/swiftover/swiftover' (x86_64)
+[I::swiftover.vcf.liftVCF] Added 25 contig entries from chainfile
+[W::swiftover.vcf.liftVCF] 57 contigs present in chainfile but not destination genome.
+error: need to add support for DW_TAG_base_type 'immutable(char)' encoded with DW_ATE = 0x10, bit_size = 8
+Process 26932 stopped
+* thread #1, name = 'swiftover', stop reason = breakpoint 1.1
+    frame #0: 0x0000555555660dd4 swiftover`_D7dhtslib3vcf9VCFRecord5chromMFNdAyaZv(this=0x00007ffff07da8c0, c=<unavailable>) at vcf.d:213:9
+   210 	    @property
+   211 	    void chrom(string c)
+   212 	    {
+-> 213 	        auto rid = bcf_hdr_name2id(this.vcfheader.hdr, toStringz(c));
+   214 	        if (rid == -1) {
+   215 	            hts_log_error(__FUNCTION__, format("contig not found: %s", c));
+   216 	            throw new Exception("contig not found");
+(lldb) dis -f -m
+
+** 211 	    void chrom(string c)
+
+swiftover`_D7dhtslib3vcf9VCFRecord5chromMFNdAyaZv:
+    0x555555660dc0 <+0>:   pushq  %r15
+    0x555555660dc2 <+2>:   pushq  %r14
+    0x555555660dc4 <+4>:   pushq  %r12
+    0x555555660dc6 <+6>:   pushq  %rbx
+    0x555555660dc7 <+7>:   subq   $0x58, %rsp
+    0x555555660dcb <+11>:  movq   %rdx, %r14
+    0x555555660dce <+14>:  movq   %rsi, %r15
+    0x555555660dd1 <+17>:  movq   %rdi, %rbx
+
+-> 212 	    {
+-> 213 	        auto rid = bcf_hdr_name2id(this.vcfheader.hdr, toStringz(c));
+
+->  0x555555660dd4 <+20>:  movq   0x18(%rdi), %rax
+    0x555555660dd8 <+24>:  movq   (%rax), %r12
+    0x555555660ddb <+27>:  movq   %rsi, %rdi
+    0x555555660dde <+30>:  movq   %rdx, %rsi
+    0x555555660de1 <+33>:  callq  0x5555556a5090            ; _D3std6string9toStringzFNaNbNeMNkAyaZPya
+
+   873 	     *  bcf_hdr_id2name() - Translates numeric ID to sequence name
+   874 	     */
+** 875 	    pragma(inline, true) int bcf_hdr_name2id(const(bcf_hdr_t) *hdr, const(char) *id) { return bcf_hdr_id2int(hdr, BCF_DT_CTG, id); } // @suppress(dscanner.style.long_line)
+   876 	    /// ditto
+   877 	    pragma(inline, true) const(char) *bcf_hdr_id2name(const(bcf_hdr_t) *hdr, int rid) { return hdr.id[BCF_DT_CTG][rid].key; } // @suppress(dscanner.style.long_line)
+
+    0x555555660de6 <+38>:  movq   %r12, %rdi
+    0x555555660de9 <+41>:  movl   $0x1, %esi
+    0x555555660dee <+46>:  movq   %rax, %rdx
+    0x555555660df1 <+49>:  callq  0x55555565ff80            ; symbol stub for: bcf_hdr_id2int
+
+** 214 	        if (rid == -1) {
+
+    0x555555660df6 <+54>:  cmpl   $-0x1, %eax
+    0x555555660df9 <+57>:  je     0x555555660e0d            ; <+77> at vcf.d:215:13
+
+   217 	        }
+** 218 	        else line.rid = rid;
+
+    0x555555660dfb <+59>:  movq   0x10(%rbx), %rcx
+    0x555555660dff <+63>:  movl   %eax, (%rcx)
+
+** 219 	    }
+   220
+   221
+
+    0x555555660e01 <+65>:  addq   $0x58, %rsp
+    0x555555660e05 <+69>:  popq   %rbx
+    0x555555660e06 <+70>:  popq   %r12
+    0x555555660e08 <+72>:  popq   %r14
+    0x555555660e0a <+74>:  popq   %r15
+    0x555555660e0c <+76>:  retq
+
+** 215 	            hts_log_error(__FUNCTION__, format("contig not found: %s", c));
+
+    0x555555660e0d <+77>:  leaq   0x7beac(%rip), %rcx
+    0x555555660e14 <+84>:  movl   $0x14, %edx
+    0x555555660e19 <+89>:  movq   %r15, %rdi
+    0x555555660e1c <+92>:  movq   %r14, %rsi
+    0x555555660e1f <+95>:  callq  0x555555660f30            ; _D3std6format__TQkTaTAyaZQtFNaNfxAaQoZQr at format.d:6427
+
+   72  	void hts_log_error(const(char)[] ctx, string msg)
+   73  	{
+** 74  	    string colormsg = "\x1b[0;31m" ~ msg ~ "\x1b[0m";
+
+    0x555555660e24 <+100>: movq   $0x7, 0x28(%rsp)
+    0x555555660e2d <+109>: leaq   0x88696(%rip), %rcx
+    0x555555660e34 <+116>: movq   %rcx, 0x30(%rsp)
+    0x555555660e39 <+121>: movq   %rax, 0x38(%rsp)
+    0x555555660e3e <+126>: movq   %rdx, 0x40(%rsp)
+    0x555555660e43 <+131>: movq   $0x4, 0x48(%rsp)
+    0x555555660e4c <+140>: leaq   0x88672(%rip), %rax
+    0x555555660e53 <+147>: movq   %rax, 0x50(%rsp)
+    0x555555660e58 <+152>: leaq   0xbb689(%rip), %rdi       ; _D12TypeInfo_Aya6__initZ
+    0x555555660e5f <+159>: leaq   0x28(%rsp), %rdx
+    0x555555660e64 <+164>: movl   $0x3, %esi
+    0x555555660e69 <+169>: callq  0x5555556c26a0            ; _d_arraycatnTX
+    0x555555660e6e <+174>: movq   %rax, %rbx
+    0x555555660e71 <+177>: movq   %rdx, %r14
+
+** 75  	    hts_log(htsLogLevel.HTS_LOG_ERROR, toStringz(ctx), toStringz(colormsg));
+   76  	}
+   77  	/**! Logs an event with severity HTS_LOG_WARNING and default context. Parameters: format, ... */
+
+    0x555555660e74 <+180>: leaq   0x7be25(%rip), %rsi
+    0x555555660e7b <+187>: movl   $0x1b, %edi
+    0x555555660e80 <+192>: callq  0x5555556a5030            ; _D3std6string9toStringzFNaNbNeMAxaZPya
+    0x555555660e85 <+197>: movq   %rax, %r15
+    0x555555660e88 <+200>: movq   %rbx, %rdi
+    0x555555660e8b <+203>: movq   %r14, %rsi
+    0x555555660e8e <+206>: callq  0x5555556a5090            ; _D3std6string9toStringzFNaNbNeMNkAyaZPya
+    0x555555660e93 <+211>: movl   $0x1, %edi
+    0x555555660e98 <+216>: movq   %r15, %rsi
+    0x555555660e9b <+219>: movq   %rax, %rdx
+    0x555555660e9e <+222>: xorl   %eax, %eax
+    0x555555660ea0 <+224>: callq  0x55555565ff90            ; symbol stub for: hts_log
+
+** 216 	            throw new Exception("contig not found");
+
+    0x555555660ea5 <+229>: leaq   0x1168f4(%rip), %rdi      ; _D9Exception7__ClassZ
+    0x555555660eac <+236>: callq  0x5555556bebe0            ; _d_allocclass
+    0x555555660eb1 <+241>: movq   %rax, %rbx
+    0x555555660eb4 <+244>: leaq   0xba155(%rip), %rax       ; _D9Exception6__vtblZ
+    0x555555660ebb <+251>: movq   %rax, (%rbx)
+    0x555555660ebe <+254>: movq   $0x0, 0x8(%rbx)
+    0x555555660ec6 <+262>: leaq   0xba193(%rip), %rax       ; _D9Exception6__initZ
+    0x555555660ecd <+269>: movups 0x10(%rax), %xmm0
+    0x555555660ed1 <+273>: movups 0x20(%rax), %xmm1
+    0x555555660ed5 <+277>: movups 0x30(%rax), %xmm2
+    0x555555660ed9 <+281>: movups 0x3c(%rax), %xmm3
+    0x555555660edd <+285>: movups %xmm3, 0x3c(%rbx)
+    0x555555660ee1 <+289>: movups %xmm2, 0x30(%rbx)
+    0x555555660ee5 <+293>: movups %xmm1, 0x20(%rbx)
+    0x555555660ee9 <+297>: movups %xmm0, 0x10(%rbx)
+    0x555555660eed <+301>: movq   $0x10, 0x18(%rsp)
+    0x555555660ef6 <+310>: leaq   0x7bde3(%rip), %rax
+    0x555555660efd <+317>: movq   %rax, 0x20(%rsp)
+    0x555555660f02 <+322>: movups 0x18(%rsp), %xmm0
+    0x555555660f07 <+327>: movups %xmm0, (%rsp)
+    0x555555660f0b <+331>: leaq   0x7bdee(%rip), %r8
+    0x555555660f12 <+338>: movl   $0xd8, %edx
+    0x555555660f17 <+343>: movl   $0x1f, %ecx
+    0x555555660f1c <+348>: movq   %rbx, %rdi
+    0x555555660f1f <+351>: xorl   %esi, %esi
+    0x555555660f21 <+353>: callq  0x5555556b8fe0            ; _D6object9Exception6__ctorMFNaNbNiNfAyaQdmCQBp9ThrowableZCQBx
+    0x555555660f26 <+358>: movq   %rbx, %rdi
+    0x555555660f29 <+361>: callq  0x5555556bde40            ; _d_throw_exception
+(lldb)

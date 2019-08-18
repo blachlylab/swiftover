@@ -112,11 +112,13 @@ struct ChainLink
     alias end = tEnd;
 
     /// Compute qEnd PRN
-    pragma(inline, true)
     @nogc nothrow
     @property
     int qEnd() const
     {
+        version(DigitalMars) pragma(inline);
+        version(GNU) pragma(inline, true);
+        version(LDC) pragma(inline, true);
         return this.qStart + (this.invert * (this.tEnd - this.tStart));
     }
 

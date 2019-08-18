@@ -30,6 +30,8 @@ void liftVCF(
     auto cf = ChainFile(chainfile);
 
     auto fa = IndexedFastaFile(genomefile, true);
+    fa.setCacheSize(1<<20); // including this improves runtime by 33%
+    //fa.setThreads(1); // including this more than doubles runtime :-O
     
     // TODO need dhtslib to support stdin/stdout
 
@@ -101,7 +103,7 @@ void liftVCF(
     // GC takes care of closing; TODO scope exit flush?
 
     
-    int nmatched, nunmatched;
+    int nmatched, nunmatched, nrefchg;
 
     foreach(rec; *fi)
     {
@@ -129,11 +131,12 @@ void liftVCF(
             // Check reference allele
             //const auto newRefAllele = fa[rec.chrom, rec.pos .. (rec.pos + rec.refLen)];
             const auto newRefAllele = fa.fetchSequence(rec.chrom, rec.pos, rec.pos + rec.refLen);
-            auto alleles = rec.allelesAsArray;
-            if (alleles[0] != newRefAllele)
+            if (rec.refAllele != newRefAllele)
             {
+                auto alleles = rec.allelesAsArray;
                 //hts_log_warning(__FUNCTION__, format("REF allele mismatch: %s -> %s", alleles[0], newRefAllele));
-                
+                nrefchg++;
+
                 // Check ALT -- TODO, if no REF allele will be range violation
                 foreach(alt; alleles[1 .. $]) {
                     // TODO, run pluggable INFO field updates
@@ -155,7 +158,8 @@ void liftVCF(
         }
     }
     
-    hts_log_info(__FUNCTION__, format("Matched %d records (%d unmatched)", nmatched, nunmatched));
+    hts_log_info(__FUNCTION__, format("Matched %d records (%d unmatched); %d REF allele changes",
+                                nmatched, nunmatched, nrefchg));
     
 }
 

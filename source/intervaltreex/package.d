@@ -67,7 +67,7 @@ if (__traits(hasMember, IntervalType1, "start") &&
 {
     // DMD cannot inline this
     version(LDC) pragma(inline, true);
-    version(GDC) pragma(inline, true);
+    version(GNU) pragma(inline, true);
     // int1   =====    =======
     // int2 =======  =======
     if (int2.start <= int1.start &&  int1.start < int2.end) return true;

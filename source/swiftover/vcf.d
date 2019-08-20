@@ -117,6 +117,9 @@ void liftVCF(
 
         const auto nresult = cf.liftDirectly(contig, coord);
 
+//        if (contig != rec.chrom)
+//            throw new Exception( format("GUARD: rec.chrom: %s\tcontig: %s", rec.chrom, contig) );
+        
         rec.chrom = contig;
         rec.pos = coord;
 

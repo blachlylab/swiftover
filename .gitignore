@@ -27,6 +27,7 @@ docs.json
 __dummy.html
 docs/
 dub.selections.json
+dub_platform_probe*.s
 
 # Code coverage
 *.lst

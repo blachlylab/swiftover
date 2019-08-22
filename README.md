@@ -15,8 +15,8 @@ tree structures in linear/sequential search workloads as often found in genomics
 Indeed, splay trees outperform the well-balanced AVL tree,
 which outperformed a slightly-less-well-balanced Red-Black tree.
 
- With the recent invention of Iplicit Interval Trees (IITrees) [iitree][1]
- by Heng Li and similar structures by others, we've tested these and found them
+ With the recent invention of Iplicit Interval Trees (IITrees)
+ by Heng Li [1] and similar structures by others, we've tested these and found them
  to be even faster than splay trees in linear-scan liftover workloads.
  For strict liftover applications, IITrees are recommended.
  
@@ -108,4 +108,4 @@ but _especially_ if the reference allele has changed. Look for the `refchg` tag 
 
 ## References
 
-[iitree]: https://github.com/lh3/cgranges
+[1] https://github.com/lh3/cgranges

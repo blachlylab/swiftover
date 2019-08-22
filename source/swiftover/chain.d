@@ -100,8 +100,7 @@ struct ChainLink
     int tStart; /// Target [start   -- Zero based closed start
     int tEnd;   /// Target end)     -- Zero based open end
     int qStart; /// Query [start
-    string qContig; /// Query contig
-    // TODO , should will it help to repack this with string(ptr) aligned at front of struct on 16/32 byte boundary?
+    int qcid;   /// Query contig ID
     
     //NB this is confusingly namd ; do not if(invert) ! perhaps beter called 'strand'
     byte invert;    /// i ∈ {-1, +1} where -1 => target/query on different strands; +1 => same strand
@@ -163,9 +162,9 @@ struct ChainLink
         static const char[3] strand_table = [ '-', '!', '+' ];
 
         // Luckily, chain files always give source interval on +, so we don't need to store
-		return format("%s:%d-%d(+) → %s:%d-%d(%s)",
+		return format("%s:%d-%d(+) → %s(id:%d):%d-%d(%s)",
                     "unk", this.tStart, this.tEnd,
-                    this.qContig, this.qStart, this.qStart + (this.tEnd - this.tStart),
+                    "unk", this.qcid, this.qStart, this.qStart + (this.tEnd - this.tStart),
                         strand_table[this.invert + 1]);
 	}
 
@@ -566,7 +565,7 @@ struct ChainFile
         
         Returns:    number of results (0 or 1)
     */
-    int liftDirectly(ref string contig, ref int coord)
+    int liftDirectly(ref int contig, ref int coord)
     {
         auto i = BasicInterval(coord, coord + 1);
         version(avl)    auto o = this.chainsByContig[contig].findOverlapsWith(i);   // returns Node*
@@ -581,7 +580,7 @@ struct ChainFile
             version(iitree) const auto isect = intersect(*cast(ChainLink*)o.front().interval, i);   // I wish there were a better solution but since we're using void * I cannot take advantage of the type system
 
             // interval is type ChainLink
-            contig = isect.qContig;
+            contig = isect.qcid;
             coord = isect.qStart;
             return 1;
         }

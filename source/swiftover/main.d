@@ -10,6 +10,11 @@ import swiftover.vcf;
 
 import dhtslib.htslib.hts_log;
 
+version(avl) enum treeTypeString = " (version: AVL trees)";
+version(splay) enum treeTypeString = " (version: splay trees)";
+version(iitree) enum treeTypeString = " (version: cgranges/IITree)";
+//else enum treeTypeString = " (version: ???)";
+
 int main(string[] args)
 {
     string fileType;
@@ -37,18 +42,30 @@ int main(string[] args)
     catch (GetOptException e)
     {
         // TODO WTF does this not work?
-        usage.helpWanted = true;
-        defaultGetoptPrinter("swift liftover", usage.options);
+        //usage.helpWanted = true;
+        //defaultGetoptPrinter("swift liftover", usage.options);
+
+        // Workaround: https://forum.dlang.org/post/smqkbkthzfvbvygzfuiz@forum.dlang.org
+        auto helpflag = ["swiftover executable", "-h"];
+        usage = getopt(
+            helpflag,
+            std.getopt.config.required,
+            "t|type", "File type: bed|vcf", &fileType,
+            std.getopt.config.required,
+            "c|chainfile", "UCSC-format chain file", &chainfile,
+            "g|genome", "Genome (destination build; req. for VCF)", &genomefile,
+            "i|infile", "Input file; - or omit for stdin", &infile,
+            "o|outfile", "Output file; - or omit for stdout", &outfile,
+            "u|unmatched", "Unmatched output file", &unmatched,
+        );
+        defaultGetoptPrinter("🚀 swift liftover" ~ treeTypeString,
+            usage.options);
+
         return 1;
     }
 
     if (usage.helpWanted)
     {
-        version(avl) enum treeTypeString = " (version: AVL trees)";
-        version(splay) enum treeTypeString = " (version: splay trees)";
-        version(iitree) enum treeTypeString = " (version: cgranges/IITree)";
-        //else enum treeTypeString = " (version: ???)";
-
         defaultGetoptPrinter("🚀 swift liftover" ~ treeTypeString,
             usage.options);
         return 1;

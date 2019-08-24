@@ -507,7 +507,7 @@ struct ChainFile
                         version(avl)    { uint cnt; (*tree).insert( new IntervalTreeNode!ChainLink(*link), cnt ); }
                         version(splay)  (*tree).insert(*link);
                         //version(iitree) cr_add(chains, toStringz(c.targetName), link.tStart, link.tEnd, 0);
-                        version(iitree) tree.insert(c.targetName, *link);   // note contig needed for iitree
+                        version(iitree) tree.insert(c.targetName, link);   // note contig needed for iitree
                     }
 
                     // Record the destination ("query") contig needed for VCF header

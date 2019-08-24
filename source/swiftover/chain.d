@@ -244,8 +244,7 @@ struct Chain
     //bool invertStrand;  /// whether the strand in target and query differ
     byte invert;        /// i ∈ {-1, +1} where -1 => target/query on different strands; +1 => same strand
 
-    UnrolledList!(ChainLink *) *links;  /// query and target intervals in 1:1 bijective relationship
-                                        /// ptr because is @disable this(this)
+    UnrolledList!(ChainLink *) links;    /// query and target intervals in 1:1 bijective relationship
 
     static auto hfields = appender!(char[][]);  /// header fields; statically allocated to save GC allocations
     static auto dfields = appender!(int[]);       /// alignment data fields; statically allocated to save GC allocations
@@ -254,8 +253,6 @@ struct Chain
 	this(R)(R lines)
     if (isInputRange!R)
 	{
-        this.links = new UnrolledList!(ChainLink *);
-
         // Example chain header line: 
 		// chain 20851231461 chr1 249250621 + 10000 249240621 chr1 248956422 + 10000 248946422 2
 		// assumes no errors in chain line
@@ -371,7 +368,8 @@ struct Chain
             else assert(0, "Unexpected length of alignment data line");
 
             // store in this.links
-            *this.links ~= link;
+            //*this.links ~= link;
+            this.links ~= link;
         }
 	}
 
@@ -502,7 +500,7 @@ struct ChainFile
                         auto tree = &this.chainsByContig;
                     
                     // Insert all intervals from the chain into the tree
-                    foreach(link; *c.links)
+                    foreach(link; c.links)
                     {
                         version(avl)    { uint cnt; (*tree).insert( new IntervalTreeNode!ChainLink(*link), cnt ); }
                         version(splay)  (*tree).insert(*link);
@@ -529,7 +527,7 @@ struct ChainFile
             auto tree = &this.chainsByContig;
 
         // Insert all intervals from the chain into the tree
-        foreach(link; *c.links)
+        foreach(link; c.links)
         {
             version(avl)    { uint cnt; (*tree).insert( new IntervalTreeNode!ChainLink(*link), cnt ); }
             version(splay)  (*tree).insert(*link);

@@ -71,6 +71,7 @@ int main(string[] args)
         return 1;
     }
 
+    hts_set_log_level(htsLogLevel.HTS_LOG_INFO);
     debug hts_set_log_level(htsLogLevel.HTS_LOG_DEBUG);
     debug(trace) hts_set_log_level(htsLogLevel.HTS_LOG_TRACE);
 
@@ -93,6 +94,7 @@ int main(string[] args)
     if (unmatched == "")
         throw new Exception("<unmatched> output file required");
     
+    hts_log_info(__FUNCTION__, "🚀 swift liftover" ~ treeTypeString);
     switch(fileType)
     {
         case "bed":

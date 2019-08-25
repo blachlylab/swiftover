@@ -10,6 +10,7 @@
         "intervaltree": {"path": "../intervaltree"}
 	},
 	"buildRequirements": [ "allowWarnings" ],
+    "dflags-ldc": [ "" ],
 	"lflags": ["-lcurl", "-lbz2", "-llzma"  ],
 	"subConfigurations": {
 		"dhtslib": "source"

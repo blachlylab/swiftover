@@ -114,6 +114,8 @@ struct ChainLink
     alias end = tEnd;
 
     /// Compute qEnd PRN
+    pragma(inline, true)
+    @safe
     @nogc nothrow
     @property
     int qEnd() const
@@ -126,6 +128,7 @@ struct ChainLink
 
     /// Compute size PRN
     pragma(inline, true)
+    @safe
     @nogc nothrow
     @property
     int size() const
@@ -153,7 +156,7 @@ struct ChainLink
 		//else return 0;	// would be reached in case of equality (although we do not expect)
 	}
 	/// Overload <, <=, >, >= for ChainLink/int 
-	@nogc int opCmp(const int x) const nothrow
+	@safe @nogc int opCmp(const int x) const nothrow
 	{
 		if (this.start < x) return -1;
 		else if (this.start > x) return 1;
@@ -193,9 +196,9 @@ struct ChainLink
 }
 unittest
 {
-    const auto c1 = ChainLink(1000, 2000, 10_000, 1);
-    const auto c2 = ChainLink(1000, 3000, 10_000, 1);
-    const auto c3 = ChainLink(1500, 2500, 10_500, -1);
+    const auto c1 = ChainLink(1000, 2000, 10_000, "chr", 1);
+    const auto c2 = ChainLink(1000, 3000, 10_000, "chr", 1);
+    const auto c3 = ChainLink(1500, 2500, 10_500, "chr", -1);
     
     assert(c1 < c2, "ChainLink opCmp problem");
     assert(c2 < c3, "ChainLink opCmp problem");

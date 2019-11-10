@@ -178,7 +178,7 @@ struct IntervalSplayTree(IntervalType)
     {
         // DMD cannot inline this
         version(LDC) pragma(inline, true);
-        version(GDC) pragma(inline, true);
+        version(GNU) pragma(inline, true);
 
         Node *p = n.parent;
         Node *g = p.parent;
@@ -293,7 +293,7 @@ struct IntervalSplayTree(IntervalType)
     {
         // DMD cannot inline this
         version(LDC) pragma(inline, true);
-        version(GDC) pragma(inline, true);
+        version(GNU) pragma(inline, true);
 
         Node *p = n.parent;
         Node *g = p.parent;

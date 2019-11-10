@@ -1,11 +1,13 @@
 module swiftover.chain;
 
+import core.stdc.stdlib : malloc, free;
+
 import std.algorithm : map;
 import std.algorithm.comparison : max, min;
 import std.array : appender, array;
 import std.algorithm : splitter;
 import std.ascii : isWhite, newline;
-import std.conv : to;
+import std.conv : to, emplace;
 import std.file : exists, FileException;
 import std.format;
 import std.range;
@@ -118,6 +120,9 @@ struct ChainLink
     @property
     int qEnd() const
     {
+        version(DigitalMars) pragma(inline);
+        version(GNU) pragma(inline, true);
+        version(LDC) pragma(inline, true);
         return this.qStart + (this.invert * (this.tEnd - this.tStart));
     }
 
@@ -244,18 +249,28 @@ struct Chain
     //bool invertStrand;  /// whether the strand in target and query differ
     byte invert;        /// i ∈ {-1, +1} where -1 => target/query on different strands; +1 => same strand
 
-    UnrolledList!(ChainLink *) *links;  /// query and target intervals in 1:1 bijective relationship
-                                        /// ptr because is @disable this(this)
+    ChainLink* mempool; /** Some chains are extremely long. To eliminate allocs (GC or not) within
+                            the loop over links within a chain, we allocate a single pool of known length
+                            ahead of time.
+                            lines.length may be up to two lines too long, given header and blank trailer
+                        */
+
+    UnrolledList!(ChainLink *) links;    /// query and target intervals in 1:1 bijective relationship
 
     static auto hfields = appender!(char[][]);  /// header fields; statically allocated to save GC allocations
     static auto dfields = appender!(int[]);       /// alignment data fields; statically allocated to save GC allocations
 
     /// Construct Chain object from a header and range of lines comprising the links or blocks
 	this(R)(R lines)
-    if (isInputRange!R)
+    if (isRandomAccessRange!R)
 	{
-        this.links = new UnrolledList!(ChainLink *);
-
+        /// Some chains are extremely long. To eliminate allocs (GC or not) within
+        /// the loop over links within a chain, we allocate a single pool of known length
+        /// ahead of time.
+        /// lines.length may be up to two lines too long, given header and blank trailer
+        this.mempool = cast(ChainLink*) malloc(ChainLink.sizeof * lines.length);
+        int linkno; /// link number index within the memory pool
+        
         // Example chain header line: 
 		// chain 20851231461 chr1 249250621 + 10000 249240621 chr1 248956422 + 10000 248946422 2
 		// assumes no errors in chain line
@@ -323,7 +338,8 @@ struct Chain
             // note that dt and dq are not present in the final row of a chain
 
             // set up ChainLink from alignement data line
-            ChainLink* link = new ChainLink;
+            ChainLink* link = &mempool[linkno++];
+            emplace(link);
 
             //link.target.contig = this.targetName;
             link.tStart = tFrom;
@@ -371,9 +387,18 @@ struct Chain
             else assert(0, "Unexpected length of alignment data line");
 
             // store in this.links
-            *this.links ~= link;
+            //*this.links ~= link;
+            this.links ~= link;
         }
 	}
+    ~this()
+    {
+        // It is a memory leak not to free memopool,
+        // but the lifetime of allocated objects ~= lifetime of program
+        // and we need them to be live after insertion into the interval tree
+        // without having to memcpy them.
+        //free(this.mempool);
+    }
 
 	string toString() const
 	{
@@ -502,12 +527,11 @@ struct ChainFile
                         auto tree = &this.chainsByContig;
                     
                     // Insert all intervals from the chain into the tree
-                    foreach(link; *c.links)
+                    foreach(link; c.links)
                     {
                         version(avl)    { uint cnt; (*tree).insert( new IntervalTreeNode!ChainLink(*link), cnt ); }
                         version(splay)  (*tree).insert(*link);
-                        //version(iitree) cr_add(chains, toStringz(c.targetName), link.tStart, link.tEnd, 0);
-                        version(iitree) tree.insert(c.targetName, *link);   // note contig needed for iitree
+                        version(iitree) tree.insert(c.targetName, link, true, false);   // note contig needed for iitree
                     }
 
                     // Record the destination ("query") contig needed for VCF header
@@ -529,12 +553,11 @@ struct ChainFile
             auto tree = &this.chainsByContig;
 
         // Insert all intervals from the chain into the tree
-        foreach(link; *c.links)
+        foreach(link; c.links)
         {
             version(avl)    { uint cnt; (*tree).insert( new IntervalTreeNode!ChainLink(*link), cnt ); }
             version(splay)  (*tree).insert(*link);
-            //version(iitree) cr_add(chains, toStringz(c.targetName), link.tStart, link.tEnd, 0);
-            version(iitree) tree.insert(c.targetName, *link);
+            version(iitree) tree.insert(c.targetName, link, true, false);   // trackGC=true, GCptr=false;
         }
 
         // cgranges must be indexed before use
@@ -692,7 +715,6 @@ ChainLink intersect(IntervalType)(ChainLink link, const IntervalType other)
 if (__traits(hasMember, IntervalType, "start") &&
     __traits(hasMember, IntervalType, "end"))
 {
-    version(iitree) debug hts_log_debug(__FUNCTION__, format("start: %d\tend:   %d", link.start, link.end));
     // Trimming is "inwards", i.e., ===== -> -===-
     const auto trimmedStart = max(link.start, other.start);
     const auto trimmedEnd   = min(link.end,   other.end);

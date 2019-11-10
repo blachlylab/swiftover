@@ -1,17 +1,29 @@
 ![swiftover logo](swiftover_logo1x.png)
 
-# Superfast Liftover with Splay Trees
+# Superfast Liftover
 
-See our preprint here: 
+See our preprint here: pending
 
-Please star our repo and cite our manuscript! It makes a big difference in grant applications.
+Please star our repo and cite our preprint/manuscript! It makes a big difference in grant applications.
 
 ## Background and Motivation
 
 Our goal is to be at least as fast as Jim Kent's seminal "liftOver" tool.
 We hypothesize that specifically for sorted genome intervals,
 the implicit predictive caching of splay trees outperforms other
-data structures.
+tree structures in linear/sequential search workloads as often found in genomics.
+Indeed, splay trees outperform the well-balanced AVL tree,
+which outperformed a slightly-less-well-balanced Red-Black tree.
+
+ With the recent invention of Iplicit Interval Trees (IITrees)
+ by Heng Li [1] and similar structures by others, we've tested these and found them
+ to be even faster than splay trees in linear-scan liftover workloads.
+ For strict liftover applications, IITrees are recommended.
+ 
+ However, when nodes need to be added and removed (as we might need to when
+ constructing graph genome structures) a traditional tree structure
+ may be preferred due to the IITree's need to be entirely reindexed after each
+ insert/delete operation. Future studies (i.e., benchmarks) are needed.
 
 ## Installation
 
@@ -57,6 +69,8 @@ in the destination coordinates, whereas UCSC liftOver does by default. We feel t
 
 VCF liftover works as you would expect. 😁
 
+Keep in mind that contig names must be consistent among the chainfile, the genome, and the VCF.
+
 Lifting a VCF file to a new genome build additionally requres a FASTA file of the new/destination genome. If it is not already faidx indexed, an index will be created automatically. If no .fai index already exists and swiftover does not have write permission to the directory containing the genome, execution will fail.
 
 **Reference allele change:** Occasionally, the reference allele may differ even at equivalent coordinates in different genome builds. When swiftover detects this, it will update the REF column of the VCF record and add the tag **refchg** to the INFO column. These records can then be filtered by downstream tools if necessary (e.g., `bcftools view -i 'INFO/refchg=1'`)
@@ -71,6 +85,9 @@ all INFO/FORMAT tags, followed later by a plugin to recalculate select values (e
 
 ## Compiling from source
 
+With dub, the configurations `avltree`, `splaytree`, and `iitree` are available. Currently, they
+are in order of execution time iitree < splaytree < avltree.
+
 DMD codegen can be poor compared to LDC and GDC, with execution too slow to compete with `liftover`.
 Use LDC2 and `dub -b=release` for > 100% speedup.
 
@@ -80,3 +97,15 @@ by default, nor does it examine `LD_LIBRARY_PATH`. It does, however, search `LIB
 `export LIBRARY_PATH=/usr/local/lib` to build scripts or run before dub build.
 
 thanks to [http://jbohren.com/articles/2013-10-28-gold/](http://jbohren.com/articles/2013-10-28-gold/)
+
+## BUGS
+
+2019-08-20 For VCF, INFO and FORMAT columns related to allele frequencies and calculations
+may no longer be accurate in the destination genome build due to subtle mapping differences
+but _especially_ if the reference allele has changed. Look for the `refchg` tag on those rows.
+
+
+
+## References
+
+[1] https://github.com/lh3/cgranges

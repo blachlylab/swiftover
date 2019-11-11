@@ -13,11 +13,13 @@ import std.format;
 import std.range;
 import std.stdio;
 
+/+
 import std.algorithm : max; // for use in the allocator
 import std.experimental.allocator;
 import std.experimental.allocator.building_blocks.region;
 import std.experimental.allocator.building_blocks.allocator_list : AllocatorList;
 import std.experimental.allocator.mallocator : Mallocator;
++/
 
 import intervaltree;    // BasicInterval and overlaps
 version(avl) import intervaltree.avltree;
@@ -255,14 +257,13 @@ struct Chain
     //bool invertStrand;  /// whether the strand in target and query differ
     byte invert;        /// i ∈ {-1, +1} where -1 => target/query on different strands; +1 => same strand
 
-    /+ChainLink* mempool; /** Some chains are extremely long. To eliminate allocs (GC or not) within
+    ChainLink* mempool; /** Some chains are extremely long. To eliminate allocs (GC or not) within
                             the loop over links within a chain, we allocate a single pool of known length
                             ahead of time.
                             lines.length may be up to two lines too long, given header and blank trailer
                         */
-    +/
-    //AllocatorList!(Region!(Mallocator)) mempool;
-    AllocatorList!((n) => Region!Mallocator(ChainLink.sizeof * 4096)) mempool;
+    
+    ////AllocatorList!((n) => Region!Mallocator(ChainLink.sizeof * 4096)) mempool;
 
     UnrolledList!(ChainLink *) links;    /// query and target intervals in 1:1 bijective relationship
 
@@ -277,8 +278,8 @@ struct Chain
         /// the loop over links within a chain, we allocate a single pool of known length
         /// ahead of time.
         /// lines.length may be up to two lines too long, given header and blank trailer
-        ///this.mempool = cast(ChainLink*) malloc(ChainLink.sizeof * lines.length);
-        ///int linkno; /// link number index within the memory pool
+        this.mempool = cast(ChainLink*) malloc(ChainLink.sizeof * lines.length);
+        int linkno; /// link number index within the memory pool
         
         // Example chain header line: 
 		// chain 20851231461 chr1 249250621 + 10000 249240621 chr1 248956422 + 10000 248946422 2
@@ -347,9 +348,9 @@ struct Chain
             // note that dt and dq are not present in the final row of a chain
 
             // set up ChainLink from alignement data line
-            //ChainLink* link = &mempool[linkno++];
-            //emplace(link);
-            ChainLink* link = mempool.make!ChainLink;
+            ChainLink* link = &mempool[linkno++];
+            emplace(link);
+            ////ChainLink* link = mempool.make!ChainLink;
 
             //link.target.contig = this.targetName;
             link.tStart = tFrom;
@@ -611,8 +612,12 @@ struct ChainFile
         else {
             version(avl)    const auto isect = o.front().interval.intersect(i);
             version(splay)  const auto isect = o.front().interval.intersect(i);
-            version(iitree) const auto isect = intersect(*cast(ChainLink*)o.front().interval, i);   // I wish there were a better solution but since we're using void * I cannot take advantage of the type system
-
+            version(iitree) {
+                // Guards to make sure memory in the tree hasn't been freed
+                assert(o.front().interval !is null);
+                assert( (*cast(ChainLink*)o.front().interval).tEnd != 0);
+                const auto isect = intersect(*cast(ChainLink*)o.front().interval, i);   // I wish there were a better solution but since we're using void * I cannot take advantage of the type system
+            }
             // interval is type ChainLink
             contig = isect.qContig;
             coord = isect.qStart;

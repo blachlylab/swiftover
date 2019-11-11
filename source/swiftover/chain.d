@@ -516,7 +516,7 @@ struct ChainFile
                 if (chainEnd > 0) // first iteration does not mark the end of a chain
                 {
                     auto c = Chain(chainArray[chainStart..(chainEnd+1)]);   // fixes issue #11 off-by-one
-                    debug hts_log_trace(__FUNCTION__, format("Chain: %s", c));
+                    debug hts_log_trace(__FUNCTION__, format("Chain: %s", c.toString));
                     
                     // Does this contig exist in the map?
                     version(avl)
@@ -542,7 +542,7 @@ struct ChainFile
         }
         // !!! Don't forget the last chain !!!
         auto c = Chain(chainArray[chainStart .. $]);
-        debug hts_log_trace(__FUNCTION__, format("Final Chain: %s", c));
+        debug hts_log_trace(__FUNCTION__, format("Final Chain: %s", c.toString));
 
         // Does this contig exist in the map?
         version(avl)

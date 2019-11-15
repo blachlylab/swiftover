@@ -28,6 +28,8 @@ version(iitree) import intervaltree.iitree;
 
 import dhtslib.htslib.hts_log;
 
+import dklib.khash;
+
 import containers.hashmap;  // contig name -> size
 import containers.unrolledlist;
 
@@ -493,7 +495,8 @@ struct ChainFile
     version(avl)
         private IntervalAVLTree!(ChainLink)*[string] chainsByContig;
     version(splay)
-        private IntervalSplayTree!(ChainLink)*[string] chainsByContig;
+        private khash!(string, IntervalSplayTree!(ChainLink)*) chainsByContig;
+        //private IntervalSplayTree!(ChainLink)*[string] chainsByContig;
     version(iitree)
         private IITree!(ChainLink) chainsByContig;  // cgranges has own builtin hashmap
 
@@ -532,8 +535,12 @@ struct ChainFile
                     // Does this contig exist in the map?
                     version(avl)
                         auto tree = this.chainsByContig.require(c.targetName, new IntervalAVLTree!ChainLink);
-                    version(splay)
-                        auto tree = this.chainsByContig.require(c.targetName, new IntervalSplayTree!ChainLink);
+                    version(splay) {
+                        auto tree = this.chainsByContig[c.targetName];
+                        if (tree is null)
+                            tree = new IntervalSplayTree!ChainLink;
+                        //auto tree = this.chainsByContig.require(c.targetName, new IntervalSplayTree!ChainLink);
+                    }
                     version(iitree)
                         auto tree = &this.chainsByContig;
                     
@@ -558,8 +565,12 @@ struct ChainFile
         // Does this contig exist in the map?
         version(avl)
             auto tree = this.chainsByContig.require(c.targetName, new IntervalAVLTree!ChainLink);
-        version(splay)
-            auto tree = this.chainsByContig.require(c.targetName, new IntervalSplayTree!ChainLink);
+        version(splay) {
+            auto tree = this.chainsByContig[c.targetName];
+            if (tree is null)
+                tree = new IntervalSplayTree!ChainLink;
+            //auto tree = this.chainsByContig.require(c.targetName, new IntervalSplayTree!ChainLink);
+            }
         version(iitree)
             auto tree = &this.chainsByContig;
 

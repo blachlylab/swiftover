@@ -7,6 +7,7 @@
 	"dependencies": {
 		"emsi_containers": "~>0.8.0-alpha.12",
 		"dhtslib": { "path": "../dhtslib" },
+        "dklib": "~>0.0.3",
         "intervaltree": {"path": "../intervaltree"}
 	},
 	"buildRequirements": [ "allowWarnings" ],

@@ -22,13 +22,15 @@ import std.experimental.allocator.mallocator : Mallocator;
 +/
 
 import intervaltree;    // BasicInterval and overlaps
-version(avl) import intervaltree.avltree;
-version(splay) import intervaltree.splaytree;
+// IntervalAVLTree and IntervalSplayTree share a common API -- IITree is the outlier
+// TODO: ok, mostly. insert() differs
+version(avl)    { version = commonAPI; import intervaltree.avltree;  }
+version(splay)  { version = commonAPI; import intervaltree.splaytree; }
 version(iitree) import intervaltree.iitree;
 
 import dhtslib.htslib.hts_log;
 
-import dklib.khash;
+import dklib.khash;         // contig name -> IntervalTree
 
 import containers.hashmap;  // contig name -> size
 import containers.unrolledlist;
@@ -492,11 +494,9 @@ struct ChainFile
     +/
 
     /// AA of contig:string -> Interval Tree
-    version(avl)
-        private IntervalAVLTree!(ChainLink)*[string] chainsByContig;
-    version(splay)
-        private khash!(string, IntervalSplayTree!(ChainLink)*) chainsByContig;
-        //private IntervalSplayTree!(ChainLink)*[string] chainsByContig;
+    version(commonAPI)
+        private IntervalTree!(ChainLink)*[string] chainsByContig;
+        //private khash!(const(char)[], IntervalTree!(ChainLink)*) chainsByContig;
     version(iitree)
         private IITree!(ChainLink) chainsByContig;  // cgranges has own builtin hashmap
 
@@ -533,14 +533,8 @@ struct ChainFile
                     debug hts_log_trace(__FUNCTION__, format("Chain: %s", c.toString));
                     
                     // Does this contig exist in the map?
-                    version(avl)
-                        auto tree = this.chainsByContig.require(c.targetName, new IntervalAVLTree!ChainLink);
-                    version(splay) {
-                        auto tree = this.chainsByContig[c.targetName];
-                        if (tree is null)
-                            tree = new IntervalSplayTree!ChainLink;
-                        //auto tree = this.chainsByContig.require(c.targetName, new IntervalSplayTree!ChainLink);
-                    }
+                    version(commonAPI)
+                        auto tree = this.chainsByContig.require(c.targetName, new IntervalTree!ChainLink);
                     version(iitree)
                         auto tree = &this.chainsByContig;
                     
@@ -563,14 +557,8 @@ struct ChainFile
         debug hts_log_trace(__FUNCTION__, format("Final Chain: %s", c.toString));
 
         // Does this contig exist in the map?
-        version(avl)
-            auto tree = this.chainsByContig.require(c.targetName, new IntervalAVLTree!ChainLink);
-        version(splay) {
-            auto tree = this.chainsByContig[c.targetName];
-            if (tree is null)
-                tree = new IntervalSplayTree!ChainLink;
-            //auto tree = this.chainsByContig.require(c.targetName, new IntervalSplayTree!ChainLink);
-            }
+        version(commonAPI)
+            auto tree = this.chainsByContig.require(c.targetName, new IntervalTree!ChainLink);
         version(iitree)
             auto tree = &this.chainsByContig;
 
@@ -614,15 +602,13 @@ struct ChainFile
     int liftDirectly(ref string contig, ref int coord)
     {
         auto i = BasicInterval(coord, coord + 1);
-        version(avl)    auto o = this.chainsByContig[contig].findOverlapsWith(i);   // returns Node*
-        version(splay)  auto o = this.chainsByContig[contig].findOverlapsWith(i);   // returns Node*
-        version(iitree) auto o = this.chainsByContig.findOverlapsWith(contig, i);
+        version(commonAPI)  auto o = this.chainsByContig[contig].findOverlapsWith(i);  // returns Node*
+        version(iitree)     auto o = this.chainsByContig.findOverlapsWith(contig, i);
 
         const auto nres = o.length;
         if (!nres) return 0;
         else {
-            version(avl)    const auto isect = o.front().interval.intersect(i);
-            version(splay)  const auto isect = o.front().interval.intersect(i);
+            version(commonAPI) const auto isect = o.front().interval.intersect(i);
             version(iitree) {
                 // Guards to make sure memory in the tree hasn't been freed
                 assert(o.front().interval !is null);
@@ -647,16 +633,14 @@ struct ChainFile
     int liftCoordOnly(const(char)[] contig, ref int coord)
     {
         auto i = BasicInterval(coord, coord + 1);
-        version(avl)    auto o = this.chainsByContig[contig].findOverlapsWith(i);   // returns Node*
-        version(splay)  auto o = this.chainsByContig[contig].findOverlapsWith(i);   // returns Node*
-        version(iitree) auto o = this.chainsByContig.findOverlapsWith(contig, i);
+        version(commonAPI)  auto o = this.chainsByContig[contig].findOverlapsWith(i);   // returns Node*
+        version(iitree)     auto o = this.chainsByContig.findOverlapsWith(contig, i);
 
         const auto nres = o.length;
         if (!nres) return 0;
         else {
-            version(avl)    const auto isect = o.front().interval.intersect(i);
-            version(splay)  const auto isect = o.front().interval.intersect(i);
-            version(iitree) const auto isect = intersect(*cast(ChainLink*)o.front().interval, i);   // I wish there were a better solution but since we're using void * I cannot take advantage of the type system
+            version(commonAPI)  const auto isect = o.front().interval.intersect(i);
+            version(iitree)     const auto isect = intersect(*cast(ChainLink*)o.front().interval, i);   // I wish there were a better solution but since we're using void * I cannot take advantage of the type system
 
             // interval is type ChainLink
             //contig = isect.qContig;
@@ -676,8 +660,7 @@ struct ChainFile
     ChainLink[] lift(const(char)[] contig, int start, int end) // can't be const method since findOverlapsWith mutates tree
     {
         auto i = BasicInterval(start, end);
-        version(avl)    auto o = this.chainsByContig[contig].findOverlapsWith(i);   // returns Node*(s)
-        version(splay)  auto o = this.chainsByContig[contig].findOverlapsWith(i);   // returns Node*(s)
+        version(commonAPI)  auto o = this.chainsByContig[contig].findOverlapsWith(i);   // returns Node*(s)
         version(iitree) auto o = this.chainsByContig.findOverlapsWith(contig, i);
 
         // marked as debug because in hot code path
@@ -700,8 +683,7 @@ struct ChainFile
             debug hts_log_debug(__FUNCTION__, "One match to interval");
 
             // intersect makes the chain link comply with bounds of interval
-            version(avl)    const auto isect = o.front().interval.intersect(i);
-            version(splay)  const auto isect = o.front().interval.intersect(i);
+            version(commonAPI)  const auto isect = o.front().interval.intersect(i);
             version(iitree) const auto isect = intersect(*cast(ChainLink*)o.front().interval, i);   // I wish there were a better solution but since we're using void * I cannot take advantage of the type system
             //TODO here is where we would want to report truncated interval
 
@@ -718,8 +700,7 @@ struct ChainFile
             debug hts_log_debug(__FUNCTION__, "Multiple matches to interval");
 
             // [] needed for UnrolledList (opSlice to return Range over the container); was not needed when dynamic array
-            version(avl)    auto isect = o[].map!(x => x.interval.intersect(i));
-            version(splay)  auto isect = o[].map!(x => x.interval.intersect(i));
+            version(commonAPI)  auto isect = o[].map!(x => x.interval.intersect(i));
             version(iitree) auto isect = o[].map!(x => intersect(*cast(ChainLink*)x.interval, i));  // I wish there were a better solution but since we're using void * I cannot take advantage of the type system
 
             //return [];

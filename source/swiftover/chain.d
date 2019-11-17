@@ -495,8 +495,7 @@ struct ChainFile
 
     /// AA of contig:string -> Interval Tree
     version(commonAPI)
-        private IntervalTree!(ChainLink)*[string] chainsByContig;
-        //private khash!(const(char)[], IntervalTree!(ChainLink)*) chainsByContig;
+        private khash!(const(char)[], IntervalTree!(ChainLink)*) chainsByContig;
     version(iitree)
         private IITree!(ChainLink) chainsByContig;  // cgranges has own builtin hashmap
 

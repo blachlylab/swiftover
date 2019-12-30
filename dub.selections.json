@@ -4,7 +4,7 @@
 		"dhtslib": {"path":"../dhtslib"},
 		"dklib": {"path":"../dklib"},
 		"emsi_containers": "0.8.0-alpha.19",
-		"intervaltree": "0.14.0",
+		"intervaltree": {"path":"../intervaltree"},
 		"stdx-allocator": "2.77.5"
 	}
 }

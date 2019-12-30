@@ -8,7 +8,7 @@
         "emsi_containers": "~>0.8.0-alpha.12",
         "dhtslib": 	{ "path": "../dhtslib" },
         "dklib":	{ "path": "../dklib" },
-        "intervaltree": "~>0.14.0"
+        "intervaltree": { "path": "../intervaltree" }
 	},
 	"buildRequirements": [ "allowWarnings" ],
     "dflags-ldc": [ "" ],
@@ -19,17 +19,22 @@
 	"configurations": [
 		{
 			"name": "splaytree",
-			"versions": ["splay", "splaytree"],
+			"versions": ["splay"],
 			"targetType": "executable"
 		},
 		{
 			"name": "avltree",
-			"versions": [ "avl", "avltree" ],
+			"versions": [ "avl" ],
 			"targetType": "executable"
 		},
         {
             "name": "iitree",
             "versions": [ "iitree" ],
+            "targetType": "executable"
+        },
+        {
+            "name": "instrument-splaytree",
+            "versions": [ "instrument" , "splay" ],
             "targetType": "executable"
         }
 	]

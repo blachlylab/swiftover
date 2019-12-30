@@ -109,6 +109,35 @@ int main(string[] args)
             throw new Exception("Unknown file type. Use \"bed\" or \"vcf\".");
     }
 
+    version(instrument)
+    {
+        import std.format : format;
+        import std.algorithm : sort;
+        import std.algorithm.comparison : min, max;
+        import std.algorithm.searching : minElement, maxElement;
+        import std.algorithm.iteration : mean;
+        
+        double median(T)(T[] nums) pure nothrow {
+            nums.sort();
+            if (nums.length & 1)
+                return nums[$ / 2];
+            else
+                return (nums[$ / 2 - 1] + nums[$ / 2]) / 2.0;
+        }
+
+        version(splay)
+        {
+            import intervaltree.splaytree : _splaytree_visited;
+            auto n = _splaytree_visited.length;
+            auto mind = minElement(_splaytree_visited);
+            auto maxd = maxElement(_splaytree_visited);
+            auto meand = mean(_splaytree_visited);
+            auto mediand = median(_splaytree_visited);
+        }
+        hts_log_info(__FUNCTION__, format("Tree statistics: N=%d (%d -- %d) mu=%f median %f", n, mind, maxd, meand, mediand) );
+
+    }
+
     return 0;
 }
 

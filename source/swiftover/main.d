@@ -125,6 +125,15 @@ int main(string[] args)
                 return (nums[$ / 2 - 1] + nums[$ / 2]) / 2.0;
         }
 
+        version(avl)
+        {
+            import intervaltree.avltree : _avltree_visited;
+            auto n = _splaytree_visited.length;
+            auto mind = minElement(_splaytree_visited);
+            auto maxd = maxElement(_splaytree_visited);
+            auto meand = mean(_splaytree_visited);
+            auto mediand = median(_splaytree_visited);
+        }
         version(splay)
         {
             import intervaltree.splaytree : _splaytree_visited;

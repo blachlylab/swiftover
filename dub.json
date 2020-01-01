@@ -36,6 +36,11 @@
             "name": "instrument-splaytree",
             "versions": [ "instrument" , "splay" ],
             "targetType": "executable"
+        },
+        {
+            "name": "instrument-avltree",
+            "versions": [ "instrument", "avl" ],
+            "targetType": "executable"
         }
 	]
 }

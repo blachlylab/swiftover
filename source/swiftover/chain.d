@@ -717,6 +717,9 @@ struct ChainFile
 /// The intersection is computed on the original coordinates, then
 ///  the query (destination) and target (original) coords are updated
 pragma(inline, true)
+@safe
+@nogc
+nothrow
 ChainLink intersect(IntervalType)(ChainLink link, const IntervalType other)
 if (__traits(hasMember, IntervalType, "start") &&
     __traits(hasMember, IntervalType, "end"))

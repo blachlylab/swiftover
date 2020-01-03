@@ -1,0 +1,41 @@
+blac96@cancer-f5rdy12:~/source/blachlylab/swiftover$ time ./swiftover -t vcf -c resources/GRCh37_to_GRCh38.chain -g  resources/Homo_sapiens.GRCh38.dna.toplevel.fa.gz -i /data/ref/gnomAD/2.1.1/gnomad.exomes.r2.1.1.sites.21.vcf.gz -o /dev/null -u /dev/null
+[I::swiftover.main.main] 🚀 swift liftover (version: splay trees)
+[I::swiftover.vcf.liftVCF] Added 82 contig entries from chainfile
+[I::swiftover.vcf.liftVCF] Matched 184053 records (3649 unmatched); 702 REF allele changes
+
+real    0m55.062s
+user    1m13.423s
+sys     0m5.249s
+blac96@cancer-f5rdy12:~/source/blachlylab/swiftover$ time ./swiftover -t vcf -c resources/GRCh37_to_GRCh38.chain -g  resources/Homo_sapiens.GRCh38.dna.toplevel.fa.gz -i /data/ref/gnomAD/2.1.1/gnomad.exomes.r2.1.1.sites.21.vcf.gz -o /dev/null -u /dev/null
+[I::swiftover.main.main] 🚀 swift liftover (version: splay trees)
+[I::swiftover.vcf.liftVCF] Added 82 contig entries from chainfile
+[I::swiftover.vcf.liftVCF] Matched 184053 records (3649 unmatched); 702 REF allele changes
+
+real    0m55.685s
+user    1m14.522s
+sys     0m5.954s
+blac96@cancer-f5rdy12:~/source/blachlylab/swiftover$ time ./swiftover -t vcf -c resources/GRCh37_to_GRCh38.chain -g  resources/Homo_sapiens.GRCh38.dna.toplevel.fa.gz -i /data/ref/gnomAD/2.1.1/gnomad.exomes.r2.1.1.sites.21.vcf.gz -o /dev/null -u /dev/null
+[I::swiftover.main.main] 🚀 swift liftover (version: splay trees)
+[I::swiftover.vcf.liftVCF] Added 82 contig entries from chainfile
+[I::swiftover.vcf.liftVCF] Matched 184053 records (3649 unmatched); 702 REF allele changes
+
+real    0m55.865s
+user    1m15.062s
+sys     0m6.468s
+blac96@cancer-f5rdy12:~/source/blachlylab/swiftover$ time ./swiftover -t vcf -c resources/GRCh37_to_GRCh38.chain -g  resources/Homo_sapiens.GRCh38.dna.toplevel.fa.gz -i /data/ref/gnomAD/2.1.1/gnomad.exomes.r2.1.1.sites.21.vcf.gz -o /dev/null -u /dev/null
+[I::swiftover.main.main] 🚀 swift liftover (version: splay trees)
+[I::swiftover.vcf.liftVCF] Added 82 contig entries from chainfile
+[I::swiftover.vcf.liftVCF] Matched 184053 records (3649 unmatched); 702 REF allele changes
+
+real    0m56.051s
+user    1m15.496s
+sys     0m6.066s
+blac96@cancer-f5rdy12:~/source/blachlylab/swiftover$ time ./swiftover -t vcf -c resources/GRCh37_to_GRCh38.chain -g  resources/Homo_sapiens.GRCh38.dna.toplevel.fa.gz -i /data/ref/gnomAD/2.1.1/gnomad.exomes.r2.1.1.sites.21.vcf.gz -o /dev/null -u /dev/null
+[I::swiftover.main.main] 🚀 swift liftover (version: splay trees)
+[I::swiftover.vcf.liftVCF] Added 82 contig entries from chainfile
+[I::swiftover.vcf.liftVCF] Matched 184053 records (3649 unmatched); 702 REF allele changes
+
+real    0m56.109s
+user    1m14.603s
+sys     0m6.375s
+

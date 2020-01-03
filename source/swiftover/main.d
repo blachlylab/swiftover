@@ -128,11 +128,11 @@ int main(string[] args)
         version(avl)
         {
             import intervaltree.avltree : _avltree_visited;
-            auto n = _splaytree_visited.length;
-            auto mind = minElement(_splaytree_visited);
-            auto maxd = maxElement(_splaytree_visited);
-            auto meand = mean(_splaytree_visited);
-            auto mediand = median(_splaytree_visited);
+            auto n = _avltree_visited.length;
+            auto mind = minElement(_avltree_visited);
+            auto maxd = maxElement(_avltree_visited);
+            auto meand = mean(_avltree_visited);
+            auto mediand = median(_avltree_visited);
         }
         version(splay)
         {
@@ -142,6 +142,18 @@ int main(string[] args)
             auto maxd = maxElement(_splaytree_visited);
             auto meand = mean(_splaytree_visited);
             auto mediand = median(_splaytree_visited);
+        }
+        version(iitree)
+        {
+            import core.stdc.stdlib : free;
+            import intervaltree.iitree : _iitree_visited, _iitree_visited_size, _iitree_visited_capacity;
+            auto _iit_visited = _iitree_visited[0 .. _iitree_visited_size]; // make D dynamic array with zero-copy :)
+            auto n = _iit_visited.length;
+            auto mind = minElement(_iit_visited);
+            auto maxd = maxElement(_iit_visited);
+            auto meand = mean(_iit_visited);
+            auto mediand = median(_iit_visited);
+            free(_iitree_visited);  // was malloced/realloced in cgranges.c
         }
         hts_log_info(__FUNCTION__, format("Tree statistics: N=%d (%d -- %d) mu=%f median %f", n, mind, maxd, meand, mediand) );
 

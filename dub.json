@@ -41,6 +41,11 @@
             "name": "instrument-avltree",
             "versions": [ "instrument", "avl" ],
             "targetType": "executable"
+        },
+        {
+            "name": "instrument-iitree",
+            "versions": [ "instrument", "iitree" ],
+            "targetType": "executable"
         }
 	]
 }

@@ -89,12 +89,13 @@ With dub, the configurations `avltree`, `splaytree`, and `iitree` are available.
 are in order of execution time iitree < splaytree < avltree.
 
 DMD codegen can be poor compared to LDC and GDC, with execution too slow to compete with `liftover`.
-Use LDC2 and `dub -b=release` for > 100% speedup.
+Use LDC2 and `dub -b=release` for > 100% speedup. Additionally, as of dklib 0.1.1, DMD cannot inline
+(at least) one of the functions in khash, which means compilation of swiftover with LDC2 or GDC is required.
 
 **htslib:** when using LDC2, or when using the GOLD linker (instead of traditional GNU ld), you'll need to make sure
 that the linker can find libhts, which is often installed in `/usr/local/lib`. GOLD does not search there
 by default, nor does it examine `LD_LIBRARY_PATH`. It does, however, search `LIBRARY_PATH`, so add
-`export LIBRARY_PATH=/usr/local/lib` to build scripts or run before dub build.
+`export LIBRARY_PATH=/usr/local/lib` (or wherever you have installed htslib) to build scripts or run before dub build.
 
 thanks to [http://jbohren.com/articles/2013-10-28-gold/](http://jbohren.com/articles/2013-10-28-gold/)
 

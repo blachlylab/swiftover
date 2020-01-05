@@ -10,6 +10,11 @@ import swiftover.vcf;
 
 import dhtslib.htslib.hts_log;
 
+version(avl) enum treeTypeString = " (version: AVL trees)";
+version(splay) enum treeTypeString = " (version: splay trees)";
+version(iitree) enum treeTypeString = " (version: cgranges/IITree)";
+//else enum treeTypeString = " (version: ???)";
+
 int main(string[] args)
 {
     string fileType;
@@ -37,23 +42,36 @@ int main(string[] args)
     catch (GetOptException e)
     {
         // TODO WTF does this not work?
-        usage.helpWanted = true;
-        defaultGetoptPrinter("swift liftover", usage.options);
+        //usage.helpWanted = true;
+        //defaultGetoptPrinter("swift liftover", usage.options);
+
+        // Workaround: https://forum.dlang.org/post/smqkbkthzfvbvygzfuiz@forum.dlang.org
+        auto helpflag = ["swiftover executable", "-h"];
+        usage = getopt(
+            helpflag,
+            std.getopt.config.required,
+            "t|type", "File type: bed|vcf", &fileType,
+            std.getopt.config.required,
+            "c|chainfile", "UCSC-format chain file", &chainfile,
+            "g|genome", "Genome (destination build; req. for VCF)", &genomefile,
+            "i|infile", "Input file; - or omit for stdin", &infile,
+            "o|outfile", "Output file; - or omit for stdout", &outfile,
+            "u|unmatched", "Unmatched output file", &unmatched,
+        );
+        defaultGetoptPrinter("🚀 swift liftover" ~ treeTypeString,
+            usage.options);
+
         return 1;
     }
 
     if (usage.helpWanted)
     {
-        version(avl) enum treeTypeString = " (version: AVL trees)";
-        version(splay) enum treeTypeString = " (version: splay trees)";
-        version(iitree) enum treeTypeString = " (version: cgranges/IITree)";
-        //else enum treeTypeString = " (version: ???)";
-
         defaultGetoptPrinter("🚀 swift liftover" ~ treeTypeString,
             usage.options);
         return 1;
     }
 
+    hts_set_log_level(htsLogLevel.HTS_LOG_INFO);
     debug hts_set_log_level(htsLogLevel.HTS_LOG_DEBUG);
     debug(trace) hts_set_log_level(htsLogLevel.HTS_LOG_TRACE);
 
@@ -76,6 +94,7 @@ int main(string[] args)
     if (unmatched == "")
         throw new Exception("<unmatched> output file required");
     
+    hts_log_info(__FUNCTION__, "🚀 swift liftover" ~ treeTypeString);
     switch(fileType)
     {
         case "bed":
@@ -88,6 +107,56 @@ int main(string[] args)
             break;
         default:
             throw new Exception("Unknown file type. Use \"bed\" or \"vcf\".");
+    }
+
+    version(instrument)
+    {
+        import std.format : format;
+        import std.algorithm : sort;
+        import std.algorithm.comparison : min, max;
+        import std.algorithm.searching : minElement, maxElement;
+        import std.algorithm.iteration : mean;
+        
+        double median(T)(T[] nums) pure nothrow {
+            nums.sort();
+            if (nums.length & 1)
+                return nums[$ / 2];
+            else
+                return (nums[$ / 2 - 1] + nums[$ / 2]) / 2.0;
+        }
+
+        version(avl)
+        {
+            import intervaltree.avltree : _avltree_visited;
+            auto n = _avltree_visited.length;
+            auto mind = minElement(_avltree_visited);
+            auto maxd = maxElement(_avltree_visited);
+            auto meand = mean(_avltree_visited);
+            auto mediand = median(_avltree_visited);
+        }
+        version(splay)
+        {
+            import intervaltree.splaytree : _splaytree_visited;
+            auto n = _splaytree_visited.length;
+            auto mind = minElement(_splaytree_visited);
+            auto maxd = maxElement(_splaytree_visited);
+            auto meand = mean(_splaytree_visited);
+            auto mediand = median(_splaytree_visited);
+        }
+        version(iitree)
+        {
+            import core.stdc.stdlib : free;
+            import intervaltree.iitree : _iitree_visited, _iitree_visited_size, _iitree_visited_capacity;
+            auto _iit_visited = _iitree_visited[0 .. _iitree_visited_size]; // make D dynamic array with zero-copy :)
+            auto n = _iit_visited.length;
+            auto mind = minElement(_iit_visited);
+            auto maxd = maxElement(_iit_visited);
+            auto meand = mean(_iit_visited);
+            auto mediand = median(_iit_visited);
+            free(_iitree_visited);  // was malloced/realloced in cgranges.c
+        }
+        hts_log_info(__FUNCTION__, format("Tree statistics: N=%d (%d -- %d) mu=%f median %f", n, mind, maxd, meand, mediand) );
+
     }
 
     return 0;

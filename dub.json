@@ -5,11 +5,13 @@
 	"homepage": "http://github.com/blachlylab/swiftover",
 	"license": "GPL-3.0",
 	"dependencies": {
-		"emsi_containers": "~>0.8.0-alpha.12",
-		"dhtslib": { "path": "../dhtslib" },
-        "intervaltree": {"path": "../intervaltree"}
+        "emsi_containers": "~>0.8.0-alpha.12",
+        "dhtslib": 	{ "path": "../dhtslib" },
+        "dklib":	{ "path": "../dklib" },
+        "intervaltree": { "path": "../intervaltree" }
 	},
 	"buildRequirements": [ "allowWarnings" ],
+    "dflags-ldc": [ "" ],
 	"lflags": ["-lcurl", "-lbz2", "-llzma"  ],
 	"subConfigurations": {
 		"dhtslib": "source"
@@ -17,17 +19,32 @@
 	"configurations": [
 		{
 			"name": "splaytree",
-			"versions": ["splay", "splaytree"],
+			"versions": ["splay"],
 			"targetType": "executable"
 		},
 		{
 			"name": "avltree",
-			"versions": [ "avl", "avltree" ],
+			"versions": [ "avl" ],
 			"targetType": "executable"
 		},
         {
             "name": "iitree",
             "versions": [ "iitree" ],
+            "targetType": "executable"
+        },
+        {
+            "name": "instrument-splaytree",
+            "versions": [ "instrument" , "splay" ],
+            "targetType": "executable"
+        },
+        {
+            "name": "instrument-avltree",
+            "versions": [ "instrument", "avl" ],
+            "targetType": "executable"
+        },
+        {
+            "name": "instrument-iitree",
+            "versions": [ "instrument", "iitree" ],
             "targetType": "executable"
         }
 	]

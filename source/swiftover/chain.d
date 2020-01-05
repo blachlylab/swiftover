@@ -1,22 +1,36 @@
 module swiftover.chain;
 
+import core.stdc.stdlib : malloc, free;
+
 import std.algorithm : map;
 import std.algorithm.comparison : max, min;
 import std.array : appender, array;
 import std.algorithm : splitter;
 import std.ascii : isWhite, newline;
-import std.conv : to;
+import std.conv : to, emplace;
 import std.file : exists, FileException;
 import std.format;
 import std.range;
 import std.stdio;
 
+/+
+import std.algorithm : max; // for use in the allocator
+import std.experimental.allocator;
+import std.experimental.allocator.building_blocks.region;
+import std.experimental.allocator.building_blocks.allocator_list : AllocatorList;
+import std.experimental.allocator.mallocator : Mallocator;
++/
+
 import intervaltree;    // BasicInterval and overlaps
-version(avl) import intervaltree.avltree;
-version(splay) import intervaltree.splaytree;
+// IntervalAVLTree and IntervalSplayTree share a common API -- IITree is the outlier
+// TODO: ok, mostly. insert() differs
+version(avl)    { version = commonAPI; import intervaltree.avltree;  }
+version(splay)  { version = commonAPI; import intervaltree.splaytree; }
 version(iitree) import intervaltree.iitree;
 
 import dhtslib.htslib.hts_log;
+
+import dklib.khash;         // contig name -> IntervalTree
 
 import containers.hashmap;  // contig name -> size
 import containers.unrolledlist;
@@ -111,6 +125,8 @@ struct ChainLink
     alias end = tEnd;
 
     /// Compute qEnd PRN
+    pragma(inline, true)
+    @safe
     @nogc nothrow
     @property
     int qEnd() const
@@ -123,6 +139,7 @@ struct ChainLink
 
     /// Compute size PRN
     pragma(inline, true)
+    @safe
     @nogc nothrow
     @property
     int size() const
@@ -150,7 +167,7 @@ struct ChainLink
 		//else return 0;	// would be reached in case of equality (although we do not expect)
 	}
 	/// Overload <, <=, >, >= for ChainLink/int 
-	@nogc int opCmp(const int x) const nothrow
+	@safe @nogc int opCmp(const int x) const nothrow
 	{
 		if (this.start < x) return -1;
 		else if (this.start > x) return 1;
@@ -190,9 +207,9 @@ struct ChainLink
 }
 unittest
 {
-    const auto c1 = ChainLink(1000, 2000, 10_000, 1);
-    const auto c2 = ChainLink(1000, 3000, 10_000, 1);
-    const auto c3 = ChainLink(1500, 2500, 10_500, -1);
+    const auto c1 = ChainLink(1000, 2000, 10_000, "chr", 1);
+    const auto c2 = ChainLink(1000, 3000, 10_000, "chr", 1);
+    const auto c3 = ChainLink(1500, 2500, 10_500, "chr", -1);
     
     assert(c1 < c2, "ChainLink opCmp problem");
     assert(c2 < c3, "ChainLink opCmp problem");
@@ -243,18 +260,30 @@ struct Chain
     //bool invertStrand;  /// whether the strand in target and query differ
     byte invert;        /// i ∈ {-1, +1} where -1 => target/query on different strands; +1 => same strand
 
-    UnrolledList!(ChainLink *) *links;  /// query and target intervals in 1:1 bijective relationship
-                                        /// ptr because is @disable this(this)
+    ChainLink* mempool; /** Some chains are extremely long. To eliminate allocs (GC or not) within
+                            the loop over links within a chain, we allocate a single pool of known length
+                            ahead of time.
+                            lines.length may be up to two lines too long, given header and blank trailer
+                        */
+    
+    ////AllocatorList!((n) => Region!Mallocator(ChainLink.sizeof * 4096)) mempool;
+
+    UnrolledList!(ChainLink *) links;    /// query and target intervals in 1:1 bijective relationship
 
     static auto hfields = appender!(char[][]);  /// header fields; statically allocated to save GC allocations
     static auto dfields = appender!(int[]);       /// alignment data fields; statically allocated to save GC allocations
 
     /// Construct Chain object from a header and range of lines comprising the links or blocks
 	this(R)(R lines)
-    if (isInputRange!R)
+    if (isRandomAccessRange!R)
 	{
-        this.links = new UnrolledList!(ChainLink *);
-
+        /// Some chains are extremely long. To eliminate allocs (GC or not) within
+        /// the loop over links within a chain, we allocate a single pool of known length
+        /// ahead of time.
+        /// lines.length may be up to two lines too long, given header and blank trailer
+        this.mempool = cast(ChainLink*) malloc(ChainLink.sizeof * lines.length);
+        int linkno; /// link number index within the memory pool
+        
         // Example chain header line: 
 		// chain 20851231461 chr1 249250621 + 10000 249240621 chr1 248956422 + 10000 248946422 2
 		// assumes no errors in chain line
@@ -322,7 +351,9 @@ struct Chain
             // note that dt and dq are not present in the final row of a chain
 
             // set up ChainLink from alignement data line
-            ChainLink* link = new ChainLink;
+            ChainLink* link = &mempool[linkno++];
+            emplace(link);
+            ////ChainLink* link = mempool.make!ChainLink;
 
             //link.target.contig = this.targetName;
             link.tStart = tFrom;
@@ -370,9 +401,18 @@ struct Chain
             else assert(0, "Unexpected length of alignment data line");
 
             // store in this.links
-            *this.links ~= link;
+            //*this.links ~= link;
+            this.links ~= link;
         }
 	}
+    ~this()
+    {
+        // It is a memory leak not to free memopool,
+        // but the lifetime of allocated objects ~= lifetime of program
+        // and we need them to be live after insertion into the interval tree
+        // without having to memcpy them.
+        //free(this.mempool);
+    }
 
 	string toString() const
 	{
@@ -453,10 +493,8 @@ struct ChainFile
     +/
 
     /// AA of contig:string -> Interval Tree
-    version(avl)
-        private IntervalAVLTree!(ChainLink)*[string] chainsByContig;
-    version(splay)
-        private IntervalSplayTree!(ChainLink)*[string] chainsByContig;
+    version(commonAPI)
+        private khash!(const(char)[], IntervalTree!(ChainLink)*) chainsByContig;
     version(iitree)
         private IITree!(ChainLink) chainsByContig;  // cgranges has own builtin hashmap
 
@@ -490,23 +528,20 @@ struct ChainFile
                 if (chainEnd > 0) // first iteration does not mark the end of a chain
                 {
                     auto c = Chain(chainArray[chainStart..(chainEnd+1)]);   // fixes issue #11 off-by-one
-                    debug hts_log_trace(__FUNCTION__, format("Chain: %s", c));
+                    debug hts_log_trace(__FUNCTION__, format("Chain: %s", c.toString));
                     
                     // Does this contig exist in the map?
-                    version(avl)
-                        auto tree = this.chainsByContig.require(c.targetName, new IntervalAVLTree!ChainLink);
-                    version(splay)
-                        auto tree = this.chainsByContig.require(c.targetName, new IntervalSplayTree!ChainLink);
+                    version(commonAPI)
+                        auto tree = this.chainsByContig.require(c.targetName, new IntervalTree!ChainLink);
                     version(iitree)
                         auto tree = &this.chainsByContig;
                     
                     // Insert all intervals from the chain into the tree
-                    foreach(link; *c.links)
+                    foreach(link; c.links)
                     {
                         version(avl)    { uint cnt; (*tree).insert( new IntervalTreeNode!ChainLink(*link), cnt ); }
                         version(splay)  (*tree).insert(*link);
-                        //version(iitree) cr_add(chains, toStringz(c.targetName), link.tStart, link.tEnd, 0);
-                        version(iitree) tree.insert(c.targetName, *link);   // note contig needed for iitree
+                        version(iitree) tree.insert(c.targetName, link, true, false);   // note contig needed for iitree
                     }
 
                     // Record the destination ("query") contig needed for VCF header
@@ -517,23 +552,20 @@ struct ChainFile
         }
         // !!! Don't forget the last chain !!!
         auto c = Chain(chainArray[chainStart .. $]);
-        debug hts_log_trace(__FUNCTION__, format("Final Chain: %s", c));
+        debug hts_log_trace(__FUNCTION__, format("Final Chain: %s", c.toString));
 
         // Does this contig exist in the map?
-        version(avl)
-            auto tree = this.chainsByContig.require(c.targetName, new IntervalAVLTree!ChainLink);
-        version(splay)
-            auto tree = this.chainsByContig.require(c.targetName, new IntervalSplayTree!ChainLink);
+        version(commonAPI)
+            auto tree = this.chainsByContig.require(c.targetName, new IntervalTree!ChainLink);
         version(iitree)
             auto tree = &this.chainsByContig;
 
         // Insert all intervals from the chain into the tree
-        foreach(link; *c.links)
+        foreach(link; c.links)
         {
             version(avl)    { uint cnt; (*tree).insert( new IntervalTreeNode!ChainLink(*link), cnt ); }
             version(splay)  (*tree).insert(*link);
-            //version(iitree) cr_add(chains, toStringz(c.targetName), link.tStart, link.tEnd, 0);
-            version(iitree) tree.insert(c.targetName, *link);
+            version(iitree) tree.insert(c.targetName, link, true, false);   // trackGC=true, GCptr=false;
         }
 
         // cgranges must be indexed before use
@@ -568,17 +600,19 @@ struct ChainFile
     int liftDirectly(ref int contig, ref int coord)
     {
         auto i = BasicInterval(coord, coord + 1);
-        version(avl)    auto o = this.chainsByContig[contig].findOverlapsWith(i);   // returns Node*
-        version(splay)  auto o = this.chainsByContig[contig].findOverlapsWith(i);   // returns Node*
-        version(iitree) auto o = this.chainsByContig.findOverlapsWith(contig, i);
+        version(commonAPI)  auto o = this.chainsByContig[contig].findOverlapsWith(i);  // returns Node*
+        version(iitree)     auto o = this.chainsByContig.findOverlapsWith(contig, i);
 
         const auto nres = o.length;
         if (!nres) return 0;
         else {
-            version(avl)    const auto isect = o.front().interval.intersect(i);
-            version(splay)  const auto isect = o.front().interval.intersect(i);
-            version(iitree) const auto isect = intersect(*cast(ChainLink*)o.front().interval, i);   // I wish there were a better solution but since we're using void * I cannot take advantage of the type system
-
+            version(commonAPI) const auto isect = o.front().interval.intersect(i);
+            version(iitree) {
+                // Guards to make sure memory in the tree hasn't been freed
+                assert(o.front().interval !is null);
+                assert( (*cast(ChainLink*)o.front().interval).tEnd != 0);
+                const auto isect = intersect(*cast(ChainLink*)o.front().interval, i);   // I wish there were a better solution but since we're using void * I cannot take advantage of the type system
+            }
             // interval is type ChainLink
             contig = isect.qcid;
             coord = isect.qStart;
@@ -597,16 +631,14 @@ struct ChainFile
     int liftCoordOnly(const(char)[] contig, ref int coord)
     {
         auto i = BasicInterval(coord, coord + 1);
-        version(avl)    auto o = this.chainsByContig[contig].findOverlapsWith(i);   // returns Node*
-        version(splay)  auto o = this.chainsByContig[contig].findOverlapsWith(i);   // returns Node*
-        version(iitree) auto o = this.chainsByContig.findOverlapsWith(contig, i);
+        version(commonAPI)  auto o = this.chainsByContig[contig].findOverlapsWith(i);   // returns Node*
+        version(iitree)     auto o = this.chainsByContig.findOverlapsWith(contig, i);
 
         const auto nres = o.length;
         if (!nres) return 0;
         else {
-            version(avl)    const auto isect = o.front().interval.intersect(i);
-            version(splay)  const auto isect = o.front().interval.intersect(i);
-            version(iitree) const auto isect = intersect(*cast(ChainLink*)o.front().interval, i);   // I wish there were a better solution but since we're using void * I cannot take advantage of the type system
+            version(commonAPI)  const auto isect = o.front().interval.intersect(i);
+            version(iitree)     const auto isect = intersect(*cast(ChainLink*)o.front().interval, i);   // I wish there were a better solution but since we're using void * I cannot take advantage of the type system
 
             // interval is type ChainLink
             //contig = isect.qContig;
@@ -626,8 +658,7 @@ struct ChainFile
     ChainLink[] lift(const(char)[] contig, int start, int end) // can't be const method since findOverlapsWith mutates tree
     {
         auto i = BasicInterval(start, end);
-        version(avl)    auto o = this.chainsByContig[contig].findOverlapsWith(i);   // returns Node*(s)
-        version(splay)  auto o = this.chainsByContig[contig].findOverlapsWith(i);   // returns Node*(s)
+        version(commonAPI)  auto o = this.chainsByContig[contig].findOverlapsWith(i);   // returns Node*(s)
         version(iitree) auto o = this.chainsByContig.findOverlapsWith(contig, i);
 
         // marked as debug because in hot code path
@@ -650,8 +681,7 @@ struct ChainFile
             debug hts_log_debug(__FUNCTION__, "One match to interval");
 
             // intersect makes the chain link comply with bounds of interval
-            version(avl)    const auto isect = o.front().interval.intersect(i);
-            version(splay)  const auto isect = o.front().interval.intersect(i);
+            version(commonAPI)  const auto isect = o.front().interval.intersect(i);
             version(iitree) const auto isect = intersect(*cast(ChainLink*)o.front().interval, i);   // I wish there were a better solution but since we're using void * I cannot take advantage of the type system
             //TODO here is where we would want to report truncated interval
 
@@ -668,8 +698,7 @@ struct ChainFile
             debug hts_log_debug(__FUNCTION__, "Multiple matches to interval");
 
             // [] needed for UnrolledList (opSlice to return Range over the container); was not needed when dynamic array
-            version(avl)    auto isect = o[].map!(x => x.interval.intersect(i));
-            version(splay)  auto isect = o[].map!(x => x.interval.intersect(i));
+            version(commonAPI)  auto isect = o[].map!(x => x.interval.intersect(i));
             version(iitree) auto isect = o[].map!(x => intersect(*cast(ChainLink*)x.interval, i));  // I wish there were a better solution but since we're using void * I cannot take advantage of the type system
 
             //return [];
@@ -687,6 +716,9 @@ struct ChainFile
 /// The intersection is computed on the original coordinates, then
 ///  the query (destination) and target (original) coords are updated
 pragma(inline, true)
+@safe
+@nogc
+nothrow
 ChainLink intersect(IntervalType)(ChainLink link, const IntervalType other)
 if (__traits(hasMember, IntervalType, "start") &&
     __traits(hasMember, IntervalType, "end"))

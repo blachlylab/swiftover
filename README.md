@@ -13,11 +13,12 @@ We hypothesize that specifically for sorted genome intervals,
 the implicit predictive caching of splay trees outperforms other
 tree structures in linear/sequential search workloads as often found in genomics.
 Indeed, splay trees outperform the well-balanced AVL tree,
-which outperformed a slightly-less-well-balanced AVL tree.
+which outperformed a slightly-less-well-balanced Red-Black tree.
 
- With the recent discovery of Iplicit Interval Trees (IITrees) [iitree][1]
- by Heng Li, we've tested these and found them to be even faster than splay trees
- in linear-scan liftover workloads. For strict liftover applications, IITrees are recommended.
+ With the recent invention of Iplicit Interval Trees (IITrees)
+ by Heng Li [1] and similar structures by others, we've tested these and found them
+ to be even faster than splay trees in linear-scan liftover workloads.
+ For strict liftover applications, IITrees are recommended.
  
  However, when nodes need to be added and removed (as we might need to when
  constructing graph genome structures) a traditional tree structure
@@ -88,27 +89,24 @@ With dub, the configurations `avltree`, `splaytree`, and `iitree` are available.
 are in order of execution time iitree < splaytree < avltree.
 
 DMD codegen can be poor compared to LDC and GDC, with execution too slow to compete with `liftover`.
-Use LDC2 and `dub -b=release` for > 100% speedup.
+Use LDC2 and `dub -b=release` for > 100% speedup. Additionally, as of dklib 0.1.1, DMD cannot inline
+(at least) one of the functions in khash, which means compilation of swiftover with LDC2 or GDC is required.
 
 **htslib:** when using LDC2, or when using the GOLD linker (instead of traditional GNU ld), you'll need to make sure
 that the linker can find libhts, which is often installed in `/usr/local/lib`. GOLD does not search there
 by default, nor does it examine `LD_LIBRARY_PATH`. It does, however, search `LIBRARY_PATH`, so add
-`export LIBRARY_PATH=/usr/local/lib` to build scripts or run before dub build.
+`export LIBRARY_PATH=/usr/local/lib` (or wherever you have installed htslib) to build scripts or run before dub build.
 
 thanks to [http://jbohren.com/articles/2013-10-28-gold/](http://jbohren.com/articles/2013-10-28-gold/)
 
 ## BUGS
-
-2019-08-20 A nondeterministic bug appears when compiled with IITree; after ~60,000 rows (on my test VM)
-of VCF processing, a "contig not found" error may be shown.
-This often disappears with subsequent executions and is related to
-memory corruption or use-after-free and garbage collector.
 
 2019-08-20 For VCF, INFO and FORMAT columns related to allele frequencies and calculations
 may no longer be accurate in the destination genome build due to subtle mapping differences
 but _especially_ if the reference allele has changed. Look for the `refchg` tag on those rows.
 
 
+
 ## References
 
-[iitree]: https://github.com/lh3/cgranges
+[1] https://github.com/lh3/cgranges

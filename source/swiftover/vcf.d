@@ -14,12 +14,18 @@ import dhtslib.htslib.vcf;
 import dhtslib.htslib.hts_log;
 import dhtslib.faidx;
 
-/** lift VCF file from src->dst (target->query)
-
-    Params:
-        chainfile   UCSC format chain file 
-
-*/
+/** 
+ * lift VCF file from src->dst (target->query)
+ *
+ * Params:
+ *  chainfile = UCSC format chain file
+ *  genomefile =    FASTA (may be gzipped) reference
+ *  infile =    input VCF
+ *  outfile =   output VCF
+ *  unmatched = output VCF for unmatched records
+ *  removeTags = (default false) if true, skip INFO and FORMAT vcf fields
+                which can massively speed processing
+ */
 void liftVCF(
     string chainfile, string genomefile,
     string infile, string outfile, string unmatched,
@@ -87,7 +93,8 @@ void liftVCF(
     if (newContigsAdded)
         hts_log_info(__FUNCTION__, format("Added %d contig entries from chainfile", newContigsAdded));
     if (missingInGenome)
-        hts_log_warning(__FUNCTION__, format("%d contigs present in chainfile but not destination genome.", missingInGenome));
+        hts_log_warning(__FUNCTION__, format("%d contigs present in chainfile but not destination genome.",
+            missingInGenome));
     
     fo.addFiledate();
     fo.addHeaderLineKV("liftoverProgram", "swiftover");

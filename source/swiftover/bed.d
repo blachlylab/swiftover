@@ -10,6 +10,8 @@ import std.stdio;
 
 import swiftover.chain;
 
+import dhtslib.htslib.hts_log;
+
 /**
     Lookup table for strand (+, -) inversion
 
@@ -62,8 +64,11 @@ static char[256] STRAND_TABLE = [
 */
 void liftBED(string chainfile, string infile, string outfile, string unmatched)
 {
+    hts_set_log_level(htsLogLevel.HTS_LOG_INFO);
+    hts_log_info(__FUNCTION__, "Reading chainfile");
     auto cf = ChainFile(chainfile);
     
+    // Fee, Fi, Fo, Fum!
     File fi;
     File fo;
     File fu;
@@ -90,6 +95,7 @@ void liftBED(string chainfile, string infile, string outfile, string unmatched)
 
     auto fields = appender!(char[][]);
 
+    hts_log_info(__FUNCTION__, "Reading BED");
     foreach(line; fi.byLine())
     {
         if (line.length > 0 && line[0] == '#') continue;

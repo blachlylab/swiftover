@@ -274,9 +274,14 @@ struct Chain
     static auto dfields = appender!(int[]);       /// alignment data fields; statically allocated to save GC allocations
 
     /// Construct Chain object from a header and range of lines comprising the links or blocks
-	this(R)(R lines)
+	this(R)(R lines, const(char)[][] contigNames, khash!(const(char)[], int) contigIDs)
     if (isRandomAccessRange!R)
 	{
+    
+// Store contigid:int<-->contig:string mapping
+//    (const(char)[])[] contigNames;
+  //  khash!(const(char)[], int) contigIDs;
+
         /// Some chains are extremely long. To eliminate allocs (GC or not) within
         /// the loop over links within a chain, we allocate a single pool of known length
         /// ahead of time.
@@ -360,7 +365,10 @@ struct Chain
             link.tEnd = tFrom + size;
             //link.target.strand = cast(STRAND) this.targetStrand;
 
-            link.qContig = this.queryName;
+            //link.qContig = this.queryName;
+            // transition to query contig ids in ChainLink
+            auto qcid = ContigIDorAdd(this.queryName, contigNames, contigIDs);   // take care of automatically creating new entry in both lookup tables if absent
+
             link.qStart = qFrom;
             // link.qEnd a computed property
 
@@ -498,9 +506,15 @@ struct ChainFile
     version(iitree)
         private IITree!(ChainLink) chainsByContig;  // cgranges has own builtin hashmap
 
+    // Store contigid:int<-->contig:string mapping
+    const(char)[][] contigNames;
+    khash!(const(char)[], int) contigIDs;
+
+    // TODO: make khash
     HashMap!(string,int) qContigSizes;  /// query (destination build) contigs,
                                         /// need for VCF
 
+    
     /// Parse UCSC-format chain file into liftover trees (one tree per source contig)
     this(string fn)
     {
@@ -527,7 +541,7 @@ struct ChainFile
 
                 if (chainEnd > 0) // first iteration does not mark the end of a chain
                 {
-                    auto c = Chain(chainArray[chainStart..(chainEnd+1)]);   // fixes issue #11 off-by-one
+                    auto c = Chain(chainArray[chainStart..(chainEnd+1)], this.contigNames, this.contigIDs);   // fixes issue #11 off-by-one
                     debug hts_log_trace(__FUNCTION__, format("Chain: %s", c.toString));
                     
                     // Does this contig exist in the map?
@@ -551,7 +565,7 @@ struct ChainFile
             }
         }
         // !!! Don't forget the last chain !!!
-        auto c = Chain(chainArray[chainStart .. $]);
+        auto c = Chain(chainArray[chainStart .. $], this.contigNames, this.contigIDs);
         debug hts_log_trace(__FUNCTION__, format("Final Chain: %s", c.toString));
 
         // Does this contig exist in the map?
@@ -597,7 +611,7 @@ struct ChainFile
         
         Returns:    number of results (0 or 1)
     */
-    int liftDirectly(ref int contig, ref int coord)
+    int liftDirectly(ref const(char)[] contig, ref int coord)
     {
         auto i = BasicInterval(coord, coord + 1);
         version(commonAPI)  auto o = this.chainsByContig[contig].findOverlapsWith(i);  // returns Node*
@@ -614,7 +628,9 @@ struct ChainFile
                 const auto isect = intersect(*cast(ChainLink*)o.front().interval, i);   // I wish there were a better solution but since we're using void * I cannot take advantage of the type system
             }
             // interval is type ChainLink
-            contig = isect.qcid;
+            assert(isect.qcid < this.contigNames.length, "A query contig id is not present in the array of contig names");
+            // Lookup the query contig name in the array
+            contig = this.contigNames[isect.qcid];
             coord = isect.qStart;
             return 1;
         }
@@ -784,4 +800,12 @@ void orderStartEnd(ref int start, ref int end)
     s = start;
     start = min(start, end);
     end = max(s, end);
+}
+
+auto ContigIDorAdd(const(char)[] contig, ref const(char)[][] contigNames, ref khash!(const(char)[], int) contigIDs)
+{
+    auto qcid = contigIDs.require(contig, cast(int)contigNames.length);
+    if (qcid == contigNames.length)
+        contigNames ~= contig;
+    return qcid;
 }

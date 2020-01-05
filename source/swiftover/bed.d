@@ -142,7 +142,11 @@ void liftBED(string chainfile, string infile, string outfile, string unmatched)
             alias querySort = (x,y) => x.qStart < y.qStart;
             foreach(link; sort!querySort(trimmedLinks))
             {
-                fields.data[0] = link.qContig.dup;
+                // Transition to ChainLinks with embedded ids (not strings)
+                //fields.data[0] = link.qContig.dup;
+                assert(link.qcid < cf.contigNames.length, "A query contig id is not present in the array of contig names");
+                fields.data[0] = cf.contigNames[link.qcid].dup();
+
                 start = link.qStart;
                 end   = link.qEnd;
 

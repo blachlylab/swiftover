@@ -119,7 +119,7 @@ void liftVCF(
         bcf_translate(fo.getHeader.hdr, fi.getHeader.hdr, rec.line);
         rec.vcfheader = fo.vcfhdr;
 
-        string contig = rec.chrom;
+        const(char)[] contig = rec.chrom;
         auto coord = rec.pos;
 
         const auto nresult = cf.liftDirectly(contig, coord);

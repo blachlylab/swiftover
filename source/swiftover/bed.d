@@ -5,6 +5,7 @@ import std.algorithm.sorting;
 import std.array : appender, join, array;
 import std.conv;
 import std.file;
+import std.format;
 import std.range.primitives;
 import std.stdio;
 
@@ -144,7 +145,8 @@ void liftBED(string chainfile, string infile, string outfile, string unmatched)
             {
                 // Transition to ChainLinks with embedded ids (not strings)
                 //fields.data[0] = link.qContig.dup;
-                assert(link.qcid < cf.contigNames.length, "A query contig id is not present in the array of contig names");
+                assert(link.qcid < cf.contigNames.length, 
+                    format("A query contig id (%d) is not present in the array of contig names (len {%d})", link.qcid, cf.contigNames.length));
                 fields.data[0] = cf.contigNames[link.qcid].dup();
 
                 start = link.qStart;

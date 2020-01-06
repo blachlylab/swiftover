@@ -274,7 +274,7 @@ struct Chain
     static auto dfields = appender!(int[]);       /// alignment data fields; statically allocated to save GC allocations
 
     /// Construct Chain object from a header and range of lines comprising the links or blocks
-	this(R)(R lines, const(char)[][] contigNames, khash!(const(char)[], int) contigIDs)
+	this(R)(R lines, ref const(char)[][] contigNames, ref khash!(const(char)[], int) contigIDs)
     if (isRandomAccessRange!R)
 	{
     
@@ -365,9 +365,9 @@ struct Chain
             link.tEnd = tFrom + size;
             //link.target.strand = cast(STRAND) this.targetStrand;
 
-            //link.qContig = this.queryName;
             // transition to query contig ids in ChainLink
-            auto qcid = ContigIDorAdd(this.queryName, contigNames, contigIDs);   // take care of automatically creating new entry in both lookup tables if absent
+            //link.qContig = this.queryName;
+            link.qcid = ContigIDorAdd(this.queryName, contigNames, contigIDs);   // take care of automatically creating new entry in both lookup tables if absent
 
             link.qStart = qFrom;
             // link.qEnd a computed property
@@ -802,9 +802,13 @@ void orderStartEnd(ref int start, ref int end)
     end = max(s, end);
 }
 
+/** Get contig numeric id (for string),
+    or if not in the map, generate a new id
+    and add to the reverse index
+*/
 auto ContigIDorAdd(const(char)[] contig, ref const(char)[][] contigNames, ref khash!(const(char)[], int) contigIDs)
 {
-    auto qcid = contigIDs.require(contig, cast(int)contigNames.length);
+    int qcid = contigIDs.require(contig, cast(int)contigNames.length);
     if (qcid == contigNames.length)
         contigNames ~= contig;
     return qcid;

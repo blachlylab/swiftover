@@ -23,7 +23,6 @@ import std.experimental.allocator.mallocator : Mallocator;
 
 import intervaltree;    // BasicInterval and overlaps
 // IntervalAVLTree and IntervalSplayTree share a common API -- IITree is the outlier
-// TODO: ok, mostly. insert() differs
 version(avl)    { version = commonAPI; import intervaltree.avltree;  }
 version(splay)  { version = commonAPI; import intervaltree.splaytree; }
 version(iitree) import intervaltree.iitree;
@@ -553,7 +552,7 @@ struct ChainFile
                     // Insert all intervals from the chain into the tree
                     foreach(link; c.links)
                     {
-                        version(avl)    { uint cnt; (*tree).insert( new IntervalTreeNode!ChainLink(*link), cnt ); }
+                        version(avl)    { uint cnt; (*tree).insert(*link, cnt); }
                         version(splay)  (*tree).insert(*link);
                         version(iitree) tree.insert(c.targetName, link, true, false);   // note contig needed for iitree
                     }
@@ -577,7 +576,7 @@ struct ChainFile
         // Insert all intervals from the chain into the tree
         foreach(link; c.links)
         {
-            version(avl)    { uint cnt; (*tree).insert( new IntervalTreeNode!ChainLink(*link), cnt ); }
+            version(avl)    { uint cnt; (*tree).insert(*link, cnt); }
             version(splay)  (*tree).insert(*link);
             version(iitree) tree.insert(c.targetName, link, true, false);   // trackGC=true, GCptr=false;
         }

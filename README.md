@@ -2,36 +2,48 @@
 
 # Superfast Liftover
 
-See our preprint here: pending
-
-Please star our repo and cite our preprint/manuscript! It makes a big difference in grant applications.
+See our preprint here: (pending)
 
 ## Background and Motivation
 
-Our goal is to be at least as fast as Jim Kent's seminal "liftOver" tool.
+Our initial goal was to be at least as fast as Jim Kent's seminal "liftOver" tool.
+Since then, Swiftover has turned into a vehicle for exploration of interval data structures
+as well as a vehicle to get us VCF liftover, not available in `liftOver`, and unfortunately
+slow in CrossMap, the current standard.
+
 We hypothesize that specifically for sorted genome intervals,
 the implicit predictive caching of splay trees outperforms other
 tree structures in linear/sequential search workloads as often found in genomics.
 Indeed, splay trees outperform the well-balanced AVL tree,
 which outperformed a slightly-less-well-balanced Red-Black tree.
 
- With the recent invention of Iplicit Interval Trees (IITrees)
- by Heng Li [1] and similar structures by others, we've tested these and found them
- to be even faster than splay trees in linear-scan liftover workloads.
- For strict liftover applications, IITrees are recommended.
+With the recent invention of Iplicit Interval Trees (IITrees)
+by Heng Li [1] and similar structures by others, we've tested these and found them
+to be even faster than splay trees in some linear-scan liftover workloads.
+For strict, simple liftover applications as for example hg19 -> GRCh38, IITrees may
+slightly outperform the Splay Tree. However, for some complex liftovers, like
+hg19 -> CanFam4, Splay Trees outperform the competition.
+
+Thus for a balance of performance in all tested cases thus far, we recommend
+using the Splay Trees version (see compilation, below) of Swiftover.
  
- However, when nodes need to be added and removed (as we might need to when
- constructing graph genome structures) a traditional tree structure
- may be preferred due to the IITree's need to be entirely reindexed after each
- insert/delete operation. Future studies (i.e., benchmarks) are needed.
+Interestingly, when nodes need to be added and removed (as we might need to when
+constructing graph genome structures) a traditional tree structure
+may be preferred due to the IITree's need to be entirely reindexed after each
+insert/delete operation. Future studies (i.e., benchmarks) are needed.
 
 ## Installation
 
-Precompiled binaries are available on the releases page. These binaries are statically linked against htslib; a system installation of htslib is not required.
+Precompiled binaries are available on the releases page.
+These binaries are statically linked against htslib; a system installation of htslib is not required.
+You may still need system installation of htslib's dynamically-linked dependencies,
+typically libcurl, libbz2, and liblzma.
 
 ## Quickstart
 
 `./swiftover -t bed -c chainfile.chain -i input.bed -u unmatched.bed > output.bed`
+
+If lifting over VCF, `-g <destination genome.fa>` is also required`
 
 ## Requirements
 
@@ -62,8 +74,10 @@ destination genome.
 
 All BED formats supported, including column 6 (strand) and columns 7-8 (thickStart/thickEnd).
 
-*CAVEATS:* swiftover does not join intervals that are discontiguous
-in the destination coordinates, whereas UCSC liftOver does by default. We feel that discontiguous intervals better represent to the user the relationship between source and destination sequence.
+*CAVEATS:* 
+swiftover does not join intervals that are discontiguous
+in the destination coordinates, whereas UCSC liftOver does by default.
+We feel that discontiguous intervals better represent to the user the relationship between source and destination sequence.
 
 ### VCF
 
@@ -75,29 +89,41 @@ Lifting a VCF file to a new genome build additionally requres a FASTA file of th
 
 **Reference allele change:** Occasionally, the reference allele may differ even at equivalent coordinates in different genome builds. When swiftover detects this, it will update the REF column of the VCF record and add the tag **refchg** to the INFO column. These records can then be filtered by downstream tools if necessary (e.g., `bcftools view -i 'INFO/refchg=1'`)
 
-An extra INFO column tag `refchg` is added when the reference allele changes between the
-source and destination genomes.
-
 *CAVEATS:* INFO and FORMAT column tags related to allele frequencies and calculations may
 no longer be accurate in the destination geneome build (due to subtle mapping differences),
 but _especially_ if the reference allele has changed. We will likely add cmdline flag to strip
-all INFO/FORMAT tags, followed later by a plugin to recalculate select values (e.g. when refchg).
+all INFO/FORMAT tags, followed later by a plugin to recalculate select values (e.g. when refchg),
+or scripting (e.g. Lua) capability.
+
+### GFF3
+
+TBD
 
 ## Compiling from source
 
-With dub, the configurations `avltree`, `splaytree`, and `iitree` are available. Currently, they
-are in order of execution time iitree < splaytree < avltree.
+Swiftover uses the [intervaltree](https://github.com/blachlylab/intervaltree) library.
+
+With dub, the configurations `avltree`, `splaytree`, and `iitree` are available.
+Strictly ordering these according to execution speed is not possible, as they vary for different workloads.
+See background and discussion, above. We suggest splaytree for best overall performance.
 
 DMD codegen can be poor compared to LDC and GDC, with execution too slow to compete with `liftover`.
 Use LDC2 and `dub -b=release` for > 100% speedup. Additionally, as of dklib 0.1.1, DMD cannot inline
 (at least) one of the functions in khash, which means compilation of swiftover with LDC2 or GDC is required.
 
-**htslib:** when using LDC2, or when using the GOLD linker (instead of traditional GNU ld), you'll need to make sure
+**htslib linking:**
+when using LDC2, or when using the GOLD linker (instead of traditional GNU ld), you'll need to make sure
 that the linker can find libhts, which is often installed in `/usr/local/lib`. GOLD does not search there
 by default, nor does it examine `LD_LIBRARY_PATH`. It does, however, search `LIBRARY_PATH`, so add
 `export LIBRARY_PATH=/usr/local/lib` (or wherever you have installed htslib) to build scripts or run before dub build.
 
 thanks to [http://jbohren.com/articles/2013-10-28-gold/](http://jbohren.com/articles/2013-10-28-gold/)
+
+**htslib version:**
+Swiftover uses our htslib binding [dhtslib](https://github.com/blachlylab/dhtslib).
+dhtslib currently works only with htslib-1.9, so if compiling Swiftover from source, make sure that you have
+a system installation of htslib-1.9. When dhtslib finalizes htslib-1.10 (breaking ABI changes and new API)
+support, we will also update Swiftover to use the new dhtslib.
 
 ## BUGS
 
@@ -110,3 +136,4 @@ but _especially_ if the reference allele has changed. Look for the `refchg` tag 
 ## References
 
 [1] https://github.com/lh3/cgranges
+[2] https://github.com/blachlylab/intervaltree

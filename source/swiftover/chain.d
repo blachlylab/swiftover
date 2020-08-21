@@ -264,10 +264,9 @@ struct Chain
                             ahead of time.
                             lines.length may be up to two lines too long, given header and blank trailer
                         */
+    int nlinks;         /// Also serves as linkno index within the memory pool
     
     ////AllocatorList!((n) => Region!Mallocator(ChainLink.sizeof * 4096)) mempool;
-
-    UnrolledList!(ChainLink *) links;    /// query and target intervals in 1:1 bijective relationship
 
     static auto hfields = appender!(char[][]);  /// header fields; statically allocated to save GC allocations
     static auto dfields = appender!(int[]);       /// alignment data fields; statically allocated to save GC allocations
@@ -286,7 +285,6 @@ struct Chain
         /// ahead of time.
         /// lines.length may be up to two lines too long, given header and blank trailer
         this.mempool = cast(ChainLink*) malloc(ChainLink.sizeof * lines.length);
-        int linkno; /// link number index within the memory pool
         
         // Example chain header line: 
 		// chain 20851231461 chr1 249250621 + 10000 249240621 chr1 248956422 + 10000 248946422 2
@@ -355,7 +353,7 @@ struct Chain
             // note that dt and dq are not present in the final row of a chain
 
             // set up ChainLink from alignement data line
-            ChainLink* link = &mempool[linkno++];
+            ChainLink* link = &mempool[this.nlinks++];
             emplace(link);
             ////ChainLink* link = mempool.make!ChainLink;
 
@@ -406,10 +404,6 @@ struct Chain
                 qFrom += this.invert * (size + dq); // sub if on minus strand
             }
             else assert(0, "Unexpected length of alignment data line");
-
-            // store in this.links
-            //*this.links ~= link;
-            this.links ~= link;
         }
 	}
     ~this()
@@ -427,7 +421,7 @@ struct Chain
             this.id, 
 			this.targetName, this.targetStart, this.targetEnd,
             this.queryName, this.queryStart, this.queryEnd, this.queryStrand,
-            this.links.length);
+            this.nlinks);
 	}
 
     invariant
@@ -454,7 +448,7 @@ struct Chain
             assert(this.invert == -1);
 
         // nonempty
-        assert(this.links.length > 0);
+        assert(this.nlinks > 0);
     }
 }
 unittest
@@ -482,7 +476,7 @@ unittest
 
     auto c = Chain(data.splitter(newline));
 
-    assert(c.links.length == 19,
+    assert(c.nlinks == 19,
         "Failure parsing chain data blocks into ChainLinks");
     
     hts_set_log_level(htsLogLevel.HTS_LOG_TRACE);
@@ -550,8 +544,9 @@ struct ChainFile
                         auto tree = &this.chainsByContig;
                     
                     // Insert all intervals from the chain into the tree
-                    foreach(link; c.links)
+                    for(int linkno=0; linkno<c.nlinks; linkno++)
                     {
+                        ChainLink* link = &c.mempool[linkno];
                         version(avl)    { uint cnt; (*tree).insert(*link, cnt); }
                         version(splay)  (*tree).insert(*link);
                         version(iitree) tree.insert(c.targetName, link, true, false);   // note contig needed for iitree
@@ -574,8 +569,9 @@ struct ChainFile
             auto tree = &this.chainsByContig;
 
         // Insert all intervals from the chain into the tree
-        foreach(link; c.links)
+        for(int linkno=0; linkno<c.nlinks; linkno++)
         {
+            ChainLink* link = &c.mempool[linkno];
             version(avl)    { uint cnt; (*tree).insert(*link, cnt); }
             version(splay)  (*tree).insert(*link);
             version(iitree) tree.insert(c.targetName, link, true, false);   // trackGC=true, GCptr=false;

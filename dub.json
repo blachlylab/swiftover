@@ -5,9 +5,9 @@
 	"homepage": "http://github.com/blachlylab/swiftover",
 	"license": "GPL-3.0",
 	"dependencies": {
-        "dhtslib": 	{ "path": "../dhtslib" },
+        "dhtslib": 	"~>0.10.3",
         "dklib":	"~>0.1.1",
-        "intervaltree": { "path": "../intervaltree" }
+        "intervaltree": "~>0.20.0"
 	},
 	"buildRequirements": [ "allowWarnings" ],
     "dflags-ldc": [ "" ],

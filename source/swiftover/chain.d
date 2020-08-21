@@ -30,9 +30,7 @@ version(iitree) import intervaltree.iitree;
 import dhtslib.htslib.hts_log;
 
 import dklib.khash;         // contig name -> IntervalTree
-
-import containers.hashmap;  // contig name -> size
-import containers.unrolledlist;
+                            // contig name -> size
 
 /// ASCII valued to speed assignment and cmp
 enum STRAND : ubyte
@@ -504,7 +502,7 @@ struct ChainFile
     khash!(const(char)[], int) contigIDs;
 
     // TODO: make khash
-    HashMap!(string,int) qContigSizes;  /// query (destination build) contigs,
+    khash!(string, int) qContigSizes;    /// query (destination build) contigs,
                                         /// need for VCF
 
     
@@ -516,8 +514,6 @@ struct ChainFile
         if (!fn.exists)
             throw new FileException("File does not exist");
 
-        // Cannot undergo static init
-        this.qContigSizes = HashMap!(string, int)(256);
         // Cannot interpret cr_init() at compile time
         version(iitree) this.chainsByContig = IITree!(ChainLink)(cr_init());
 

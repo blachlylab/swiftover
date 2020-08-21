@@ -75,18 +75,18 @@ void liftVCF(
     // Add contigs from chainfile to output VCF
     int missingInGenome;
     int newContigsAdded;
-    alias keysort = (x,y) => contigSort(x.key, y.key);
-    foreach(kv; sort!keysort(cf.qContigSizes.byKeyValue.array)) {
-        if (!fa.hasSeq(kv.key)) {
-            //debug hts_log_debug(__FUNCTION__, format("❌ %s present in chainfile but not genome.", kv.key));
+    alias keysort = (x,y) => contigSort(x, y);
+    foreach(k; sort!keysort(cf.qContigSizes.byKey.array)) {
+        if (!fa.hasSeq(k)) {
+            debug hts_log_debug(__FUNCTION__, format("❌ %s present in chainfile but not genome.", kv.key));
             missingInGenome++;
         }
-        else if (fa.seqLen(kv.key) != kv.value)
+        else if (fa.seqLen(k) != cf.qContigSizes[k])
             hts_log_warning(__FUNCTION__,
                 format("🤔 %s: length %d in chainfile, %d in genome. Results may be suspect.",
-                kv.key, kv.value, fa.seqLen(kv.key)));
+                k, cf.qContigSizes[k], fa.seqLen(k)));
         else {
-            fo.addTag!"contig"(kv.key, kv.value, "source="~chainfile);   // contig id, length
+            fo.addTag!"contig"(k, cf.qContigSizes[k], "source="~chainfile);   // contig id, length
             newContigsAdded++;
         }
     }
@@ -171,6 +171,9 @@ void liftVCF(
     hts_log_info(__FUNCTION__, format("Matched %d records (%d unmatched); %d REF allele changes",
                                 nmatched, nunmatched, nrefchg));
     
+    if (nmatched == 0)
+        hts_log_warning(__FUNCTION__,
+            "Could you have a chromosome name mismatch between chain file and VCF?");
 }
 
 /// sort contigs according to custom, not strictly lexicographically

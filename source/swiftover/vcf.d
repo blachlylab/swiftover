@@ -78,7 +78,7 @@ void liftVCF(
     alias keysort = (x,y) => contigSort(x, y);
     foreach(k; sort!keysort(cf.qContigSizes.byKey.array)) {
         if (!fa.hasSeq(k)) {
-            debug hts_log_debug(__FUNCTION__, format("❌ %s present in chainfile but not genome.", kv.key));
+            debug hts_log_debug(__FUNCTION__, format("❌ %s present in chainfile but not genome.", k));
             missingInGenome++;
         }
         else if (fa.seqLen(k) != cf.qContigSizes[k])

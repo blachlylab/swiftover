@@ -51,6 +51,22 @@
             "subConfigurations": {
                 "dhtslib": "source-static"
             }
+        },
+        {
+            "name": "dist-static-avltree",
+            "versions": [ "avl" ],
+            "targetType": "executable",
+            "subConfigurations": {
+                "dhtslib": "source-static"
+            }
+        },
+        {
+            "name": "dist-static-iitree",
+            "versions": [ "iitree" ],
+            "targetType": "executable",
+            "subConfigurations": {
+                "dhtslib": "source-static"
+            }
         }
 	]
 }

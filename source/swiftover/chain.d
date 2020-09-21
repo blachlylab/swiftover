@@ -122,7 +122,6 @@ struct ChainLink
     alias end = tEnd;
 
     /// Compute qEnd PRN
-    pragma(inline, true)
     @safe
     @nogc nothrow
     @property

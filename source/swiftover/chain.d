@@ -108,10 +108,10 @@ struct ChainLink
 {
     // target and query intervals in 1:1 bijective relationship.
     // len(target) == len(query)
-    int tStart; /// Target [start   -- Zero based closed start
-    int tEnd;   /// Target end)     -- Zero based open end
-    int qStart; /// Query [start
-    int qcid;   /// Query contig ID
+    long tStart; /// Target [start   -- Zero based closed start
+    long tEnd;   /// Target end)     -- Zero based open end
+    long qStart; /// Query [start
+    long qcid;   /// Query contig ID
     
     //NB this is confusingly namd ; do not if(invert) ! perhaps beter called 'strand'
     byte invert;    /// i ∈ {-1, +1} where -1 => target/query on different strands; +1 => same strand
@@ -125,7 +125,7 @@ struct ChainLink
     @safe
     @nogc nothrow
     @property
-    int qEnd() const
+    long qEnd() const
     {
         version(DigitalMars) pragma(inline);
         version(GNU) pragma(inline, true);
@@ -138,13 +138,13 @@ struct ChainLink
     @safe
     @nogc nothrow
     @property
-    int size() const
+    long size() const
     {
         return this.invert * (this.tEnd - this.tStart);
     }
 
     /// Overload <, <=, >, >= for ChainLink/ChainLin; compare query
-	@safe @nogc int opCmp(ref const ChainLink other) const nothrow
+	@safe @nogc long opCmp(ref const ChainLink other) const nothrow
 	{
         /+
 		// Intervals from different contigs are incomparable
@@ -163,7 +163,7 @@ struct ChainLink
 		//else return 0;	// would be reached in case of equality (although we do not expect)
 	}
 	/// Overload <, <=, >, >= for ChainLink/int 
-	@safe @nogc int opCmp(const int x) const nothrow
+	@safe @nogc long opCmp(const long x) const nothrow
 	{
 		if (this.start < x) return -1;
 		else if (this.start > x) return 1;
@@ -603,7 +603,7 @@ struct ChainFile
     */
     int liftDirectly(ref const(char)[] contig, ref long coord)
     {
-        auto i = BasicInterval(coord, coord + 1);
+        auto i = BasicInterval!long(coord, coord + 1);
         version(commonAPI)  auto o = this.chainsByContig[contig].findOverlapsWith(i);  // returns Node*
         version(iitree)     auto o = this.chainsByContig.findOverlapsWith(contig, i);
 
@@ -636,7 +636,7 @@ struct ChainFile
     */
     int liftCoordOnly(const(char)[] contig, ref long coord)
     {
-        auto i = BasicInterval(coord, coord + 1);
+        auto i = BasicInterval!long(coord, coord + 1);
         version(commonAPI)  auto o = this.chainsByContig[contig].findOverlapsWith(i);   // returns Node*
         version(iitree)     auto o = this.chainsByContig.findOverlapsWith(contig, i);
 
@@ -663,7 +663,7 @@ struct ChainFile
     */
     ChainLink[] lift(const(char)[] contig, long start, long end) // can't be const method since findOverlapsWith mutates tree
     {
-        auto i = BasicInterval(start, end);
+        auto i = BasicInterval!long(start, end);
         version(commonAPI)  auto o = this.chainsByContig[contig].findOverlapsWith(i);   // returns Node*(s)
         version(iitree) auto o = this.chainsByContig.findOverlapsWith(contig, i);
 
@@ -786,7 +786,7 @@ if (__traits(hasMember, "IntervalType", "start") &&
 @nogc nothrow
 void orderStartEnd(ref long start, ref long end)
 {
-    int s;
+    long s;
     s = start;
     start = min(start, end);
     end = max(s, end);

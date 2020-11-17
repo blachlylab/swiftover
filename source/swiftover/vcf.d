@@ -10,8 +10,8 @@ import std.string;
 import swiftover.chain;
 
 import dhtslib.vcf;
-import dhtslib.htslib.vcf;
-import dhtslib.htslib.hts_log;
+import htslib.vcf;
+import htslib.hts_log;
 import dhtslib.faidx;
 
 /** 

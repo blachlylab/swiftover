@@ -27,7 +27,7 @@ version(avl)    { version = commonAPI; import intervaltree.avltree;  }
 version(splay)  { version = commonAPI; import intervaltree.splaytree; }
 version(iitree) import intervaltree.iitree;
 
-import dhtslib.htslib.hts_log;
+import htslib.hts_log;
 
 import dklib.khash;         // contig name -> IntervalTree
                             // contig name -> size
@@ -601,7 +601,7 @@ struct ChainFile
         
         Returns:    number of results (0 or 1)
     */
-    int liftDirectly(ref const(char)[] contig, ref int coord)
+    int liftDirectly(ref const(char)[] contig, ref long coord)
     {
         auto i = BasicInterval(coord, coord + 1);
         version(commonAPI)  auto o = this.chainsByContig[contig].findOverlapsWith(i);  // returns Node*
@@ -634,7 +634,7 @@ struct ChainFile
 
         Returns:    number of results (0 or 1)
     */
-    int liftCoordOnly(const(char)[] contig, ref int coord)
+    int liftCoordOnly(const(char)[] contig, ref long coord)
     {
         auto i = BasicInterval(coord, coord + 1);
         version(commonAPI)  auto o = this.chainsByContig[contig].findOverlapsWith(i);   // returns Node*
@@ -661,7 +661,7 @@ struct ChainFile
                     Initially was ChainLink, then ChainInterval, then ChainLink again
                     because we need strandInvert *and* delta *and* source/dest
     */
-    ChainLink[] lift(const(char)[] contig, int start, int end) // can't be const method since findOverlapsWith mutates tree
+    ChainLink[] lift(const(char)[] contig, long start, long end) // can't be const method since findOverlapsWith mutates tree
     {
         auto i = BasicInterval(start, end);
         version(commonAPI)  auto o = this.chainsByContig[contig].findOverlapsWith(i);   // returns Node*(s)
@@ -784,7 +784,7 @@ if (__traits(hasMember, "IntervalType", "start") &&
 /// swap start, end if start > end
 @safe
 @nogc nothrow
-void orderStartEnd(ref int start, ref int end)
+void orderStartEnd(ref long start, ref long end)
 {
     int s;
     s = start;

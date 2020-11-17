@@ -9,7 +9,7 @@ import swiftover.bed;
 import swiftover.maf;
 import swiftover.vcf;
 
-import dhtslib.htslib.hts_log;
+import htslib.hts_log;
 
 version(avl) enum treeTypeString = " (version: AVL trees)";
 version(splay) enum treeTypeString = " (version: splay trees)";

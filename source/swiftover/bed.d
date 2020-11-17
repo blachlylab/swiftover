@@ -11,7 +11,7 @@ import std.stdio;
 
 import swiftover.chain;
 
-import dhtslib.htslib.hts_log;
+import htslib.hts_log;
 
 /**
     Lookup table for strand (+, -) inversion
@@ -109,14 +109,14 @@ void liftBED(string chainfile, string infile, string outfile, string unmatched)
 
         // not sure if the .idup copy and extra storage is elided by compiler but I replaced 'contig's 2 instances with fields.data[0] directly
         //string contig = fields.data[0].idup;
-        int start = fields.data[1].to!int;
-        int end = fields.data[2].to!int;
+        long start = fields.data[1].to!int;
+        long end = fields.data[2].to!int;
 
         // array (TODO: range) of matches as ChainLink(s)
         auto trimmedLinks = cf.lift(fields.data[0], start, end);
 
-        int thickStart;
-        int thickEnd;
+        long thickStart;
+        long thickEnd;
         bool hasThickInterval;
         if (numf >= 8) {
             thickStart = fields.data[6].to!int;

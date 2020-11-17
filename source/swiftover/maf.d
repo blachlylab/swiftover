@@ -11,7 +11,7 @@ import std.stdio;
 
 import swiftover.chain;
 
-import dhtslib.htslib.hts_log;
+import htslib.hts_log;
 
 /** Lift rows of infile to outfile using liftover chains in chainfile
 
@@ -101,8 +101,8 @@ void liftMAF(string chainfile, string infile, string outfile, string unmatched)
         const auto numf = fields.data.length;
 
         //string contig = fields.data[4].idup;
-        int start = fields.data[5].to!int;
-        int end = fields.data[6].to!int;
+        long start = fields.data[5].to!int;
+        long end = fields.data[6].to!int;
 
         // array (TODO: range) of matches as ChainLink(s)
         auto trimmedLinks = cf.lift(fields.data[4], start, end);
@@ -130,9 +130,6 @@ void liftMAF(string chainfile, string infile, string outfile, string unmatched)
                 fields.data[5] = start.toChars.array;   // 67% time vs .text.dup;
                 fields.data[6] = end.toChars.array;
                 
-                // BED col 6: strand
-                if (numf >= 6) fields.data[5][0] = STRAND_TABLE[ fields.data[5][0] + link.invert ];
-
                 fo.writef("%s\n", fields.data.join("\t"));
             }
         }

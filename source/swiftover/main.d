@@ -6,6 +6,7 @@ import std.path;
 import std.stdio;
 
 import swiftover.bed;
+import swiftover.maf;
 import swiftover.vcf;
 
 import dhtslib.htslib.hts_log;
@@ -30,7 +31,7 @@ int main(string[] args)
     usage = getopt(
         args,
         std.getopt.config.required,
-        "t|type", "File type: bed|vcf", &fileType,
+        "t|type", "File type: bed|maf|vcf", &fileType,
         std.getopt.config.required,
         "c|chainfile", "UCSC-format chain file", &chainfile,
         "g|genome", "Genome (destination build; req. for VCF)", &genomefile,
@@ -50,7 +51,7 @@ int main(string[] args)
         usage = getopt(
             helpflag,
             std.getopt.config.required,
-            "t|type", "File type: bed|vcf", &fileType,
+            "t|type", "File type: bed|maf|vcf", &fileType,
             std.getopt.config.required,
             "c|chainfile", "UCSC-format chain file", &chainfile,
             "g|genome", "Genome (destination build; req. for VCF)", &genomefile,
@@ -100,6 +101,9 @@ int main(string[] args)
         case "bed":
             liftBED(chainfile, infile, outfile, unmatched);
             break;
+        case "maf":
+            liftMAF(chainfile, infile, outfile, unmatched);
+            break;
         case "vcf":
             if (genomefile == "")
                 throw new Exception("Genome FASTA (for the destination build)required.");
@@ -109,6 +113,7 @@ int main(string[] args)
             throw new Exception("Unknown file type. Use \"bed\" or \"vcf\".");
     }
 
+    // If run was instrumented, report final statistics
     version(instrument)
     {
         import std.format : format;

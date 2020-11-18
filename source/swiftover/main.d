@@ -102,11 +102,13 @@ int main(string[] args)
             liftBED(chainfile, infile, outfile, unmatched);
             break;
         case "maf":
-            liftMAF(chainfile, infile, outfile, unmatched);
+            if (genomefile == "")
+                throw new Exception("Genome FASTA (for the destination build) required.");
+            liftMAF(chainfile, genomefile, infile, outfile, unmatched);
             break;
         case "vcf":
             if (genomefile == "")
-                throw new Exception("Genome FASTA (for the destination build)required.");
+                throw new Exception("Genome FASTA (for the destination build) required.");
             liftVCF(chainfile, genomefile, infile, outfile, unmatched);
             break;
         default:

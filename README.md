@@ -29,7 +29,9 @@ See also [Compiling from source](#compiling-from-source)
 
 `./swiftover -t bed -c chainfile.chain -i input.bed -u unmatched.bed > output.bed`
 
-If lifting over VCF, `-g <destination genome.fa>` is also required`
+If lifting over MAF or VCF, `-g <destination genome.fa>` is also required`
+
+If lifting over MAF, `-b <destination genome build name>` is also required.
 
 ## Requirements
 
@@ -48,7 +50,7 @@ Swiftover needs uncompressed chain files. In the future we will add gzip reader.
 
 ### Reference genome
 
-In VCF mode, a destination (post-liftover) reference genome FASTA file is required. If a FASTA index does not exist, one will be created the first time the genome is used.
+In MAF or VCF mode, a destination (post-liftover) reference genome FASTA file is required. If a FASTA index does not exist, one will be created the first time the genome is used.
 
 ## File Formats
 
@@ -79,6 +81,21 @@ Lifting a VCF file to a new genome build additionally requres a FASTA file of th
 **Reference allele change:** Occasionally, the reference allele may differ even at equivalent coordinates in different genome builds. When swiftover detects this, it will update the `REF` column of the VCF record and add the tag **refchg** to the `INFO` column. These records can then be filtered by downstream tools if necessary (e.g., `bcftools view -i 'INFO/refchg=1'`)
 
 **CAVEATS:** `INFO` and `FORMAT` column tags related to allele frequencies and calculations may no longer be accurate in the destination geneome build (due to subtle mapping differences), but _especially_ if the reference allele has changed. We will likely add cmdline flag to strip all INFO/FORMAT tags, followed later by a plugin to recalculate select values (e.g. when refchg), or scripting (e.g. Lua) capability.
+
+### MAF
+
+MAF support is experimental. 
+
+MAF liftover works similar to VCF, but additionally requires a destination genome build name,
+as this is a standard MAF column: `https://docs.gdc.cancer.gov/Data/File_Formats/MAF_Format/`
+
+Reference allele changes should function identically to VCF.
+
+**BUGS**: MAF includes boht start and end coordinates. If multiple output intervals result from
+a single input row (as might be seen with SVs or longer INDELs), these records are skipped
+(i.e. also not written to the unmatched file). However, a metric will track and report this.
+In the future we expect to deal with these, although they may require special handling with respect
+to breaking up the "reference" allele.
 
 ### GFF3
 
@@ -131,7 +148,7 @@ dhtslib currently works only with htslib-1.9, so if compiling Swiftover from sou
 may no longer be accurate in the destination genome build due to subtle mapping differences
 but _especially_ if the reference allele has changed. Look for the `refchg` tag on those rows.
 
-
+2020-11-18 For MAF, we don't output records that multiple matching output intervals in the destination coordinate space. A metric tracks and reports this at the end.
 
 ## References
 

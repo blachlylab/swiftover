@@ -76,7 +76,7 @@ enum MAF
     be altered later if desired, but with speed penalty.
 */
 void liftMAF(
-    string chainfile, string genomefile,
+    string chainfile, string genomefile, string genomebuild,
     string infile, string outfile, string unmatched)
 {
     auto fa = IndexedFastaFile(genomefile, true);
@@ -172,6 +172,8 @@ void liftMAF(
             fields.data[MAF.Start] = start.toChars.array;   // 67% time vs .text.dup;
             fields.data[MAF.End] = end.toChars.array;
 
+            // Finally, update the genome build name
+            fields.data[MAF.NCBI_Build] = genomebuild.dup;
             fo.write("%s\n", fields.data.join("\t"));
         }
         else

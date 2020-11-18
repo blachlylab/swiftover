@@ -21,6 +21,7 @@ int main(string[] args)
     string fileType;
     string chainfile;
     string genomefile;
+    string genomebuild;
     string infile;
     string outfile;
     string unmatched;
@@ -34,7 +35,8 @@ int main(string[] args)
         "t|type", "File type: bed|maf|vcf", &fileType,
         std.getopt.config.required,
         "c|chainfile", "UCSC-format chain file", &chainfile,
-        "g|genome", "Genome (destination build; req. for VCF)", &genomefile,
+        "g|genome", "Genome FASTA (destination build; req. for MAF/VCF)", &genomefile,
+        "b|build", "Genome build name (destination; req. for MAF)", &genomebuild,
         "i|infile", "Input file; - or omit for stdin", &infile,
         "o|outfile", "Output file; - or omit for stdout", &outfile,
         "u|unmatched", "Unmatched output file", &unmatched,
@@ -54,7 +56,8 @@ int main(string[] args)
             "t|type", "File type: bed|maf|vcf", &fileType,
             std.getopt.config.required,
             "c|chainfile", "UCSC-format chain file", &chainfile,
-            "g|genome", "Genome (destination build; req. for VCF)", &genomefile,
+            "g|genome", "Genome FASTA (destination build; req. for MAF/VCF)", &genomefile,
+            "b|build", "Genome build name (destination; req. for MAF)", &genomebuild,
             "i|infile", "Input file; - or omit for stdin", &infile,
             "o|outfile", "Output file; - or omit for stdout", &outfile,
             "u|unmatched", "Unmatched output file", &unmatched,
@@ -104,7 +107,9 @@ int main(string[] args)
         case "maf":
             if (genomefile == "")
                 throw new Exception("Genome FASTA (for the destination build) required.");
-            liftMAF(chainfile, genomefile, infile, outfile, unmatched);
+            if (genomebuild == "")
+                throw new Exception("Genome build name (for the destination) required.");
+            liftMAF(chainfile, genomefile, genomebuild, infile, outfile, unmatched);
             break;
         case "vcf":
             if (genomefile == "")

@@ -131,9 +131,13 @@ void liftMAF(
 
         const auto numf = fields.data.length;
 
-        string contig = fields.data[MAF.Contig].idup;
-        long start = fields.data[MAF.Start].to!int;
-        long end = fields.data[MAF.End].to!int;
+        long start = fields.data[MAF.Start].to!long;
+        long end = fields.data[MAF.End].to!long;
+
+        // MAF is 1-based, closed (i.e., 1 base is specified s.t. start==end)
+        // Chain files are zbho
+        assert(start <= end);
+        start = start - 1;
 
         // array (TODO: range) of matches as ChainLink(s)
         auto trimmedLinks = cf.lift(fields.data[MAF.Contig], start, end);
@@ -148,8 +152,23 @@ void liftMAF(
         else if (trimmedLinks.length == 1) {
             nmatched++;
 
-            // Check reference allele
-            auto newRefAllele = fa.fetchSequence!(CoordSystem.obc)(contig, start, end);
+            // (code below referencing `link` copied from BED where we use foreach(link; trimmedLinks)
+            auto link = trimmedLinks[0];
+            assert(link.qcid < cf.contigNames.length, 
+                    format("A query contig id (%d) is not present in the array of contig names " ~
+                            "(len {%d})", link.qcid, cf.contigNames.length));
+            fields.data[MAF.Contig] = cf.contigNames[link.qcid].dup();
+
+            start = link.qStart;
+            end   = link.qEnd;
+
+            orderStartEnd(start, end);              // if invert, start > end, so swap
+            start++;                                // Revert to one based, closed coords
+            fields.data[MAF.Start] = start.toChars.array;   // 67% time vs .text.dup;
+            fields.data[MAF.End] = end.toChars.array;
+
+            // Check reference allele -- after having updated contig/start/end... :/
+            auto newRefAllele = fa.fetchSequence!(CoordSystem.obc)(fields.data[MAF.Contig].idup, start, end);
             if (fields.data[MAF.Ref_Allele] != newRefAllele)
             {
                 nrefchg++;
@@ -163,23 +182,9 @@ void liftMAF(
                 fields.data[MAF.Ref_Allele] = newRefAllele.dup; // newRefAllele is string
             }
 
-            // (code below referencing `link` copied from BED where we use foreach(link; trimmedLinks)
-            auto link = trimmedLinks[0];
-            assert(link.qcid < cf.contigNames.length, 
-                    format("A query contig id (%d) is not present in the array of contig names " ~
-                            "(len {%d})", link.qcid, cf.contigNames.length));
-            fields.data[MAF.Contig] = cf.contigNames[link.qcid].dup();
-
-            start = link.qStart;
-            end   = link.qEnd;
-
-            orderStartEnd(start, end);              // if invert, start > end, so swap
-            fields.data[MAF.Start] = start.toChars.array;   // 67% time vs .text.dup;
-            fields.data[MAF.End] = end.toChars.array;
-
             // Finally, update the genome build name
             fields.data[MAF.NCBI_Build] = genomebuild.dup;
-            fo.write("%s\n", fields.data.join("\t"));
+            fo.writef("%s\n", fields.data.join("\t"));
         }
         else
         {

@@ -119,10 +119,13 @@ void liftMAF(
     int nmatched, nunmatched, nmultiple, nrefchg;
 
     hts_log_info(__FUNCTION__, "Reading MAF");
+    // Consume header lines
+    string version_header = fi.readln();
+    string fields_header = fi.readln();
+    fo.write(version_header);
+    fo.write(fields_header);
     foreach(line; fi.byLine())
     {
-        if (line.length > 0 && line[0] == '#') continue;
-
         fields.clear();
         fields.put( line.splitter() );
 

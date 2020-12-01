@@ -55,7 +55,7 @@ enum MAF
             This forces some tradeoffs -- do we liftover both? There is
             potential for a gap in the destination coordinate space,
             such that the length could change.
-                Option 1: Lift both, warn if length2 != length1
+                Option 1: Lift range (use both), warn if length2 != length1
                 Option 2: Lift one, do arithmetic for the end coord
 
         Strand:
@@ -66,7 +66,9 @@ enum MAF
                 (i.e., must choose Option 1 above)
 
         May contain header "#version 2.x.y" (currently 2.4.1?)
-            
+        Second line is apparently ALSO a header, but doesn't contain # sigil
+        It is a column list (Hugo_Symbol\tEntrez_Gene_Id\tCenter\t...)
+
     Leftover notes from BED:
     Implementation note: if an interval incompletely lifts over, for example,
     if only the first 80 of 100 nt have a lifted over representation (and no

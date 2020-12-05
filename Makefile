@@ -42,3 +42,7 @@ resources: grch38
 
 grch38:
 	wget ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_29/GRCh38.p12.genome.fa.gz
+
+resources/cancerhotspots.v2.maf:
+	cd resources; wget http://download.cbioportal.org/cancerhotspots/cancerhotspots.v2.maf.gz
+	cd resources; gunzip cancerhotspots.v2.maf.gz

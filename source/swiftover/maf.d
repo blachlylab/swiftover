@@ -6,6 +6,7 @@ import std.array : appender, join, array;
 import std.conv;
 import std.file;
 import std.format;
+import std.range : enumerate;
 import std.range.primitives;
 import std.stdio;
 
@@ -13,6 +14,44 @@ import swiftover.chain;
 
 import htslib.hts_log;
 import dhtslib.faidx;
+
+/// Nucleotide complementarity table
+/// (Not including IUPAC ambiguity codes)
+/// '-' (specific to MAF) left as '-'
+static immutable(char)[128] NT_COMP_TABLE = [
+//  0   1   2   3   4   5   6   7   8   9   A   B   C   D   E   F
+    0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  // 0
+    0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  // 1
+    0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,'-',  0,  0,  // 2
+    0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  // 3
+    0,'T',  0,'G',  0,  0,  0,'C',  0,  0,  0,  0,  0,  0,  0,  0,  // 4
+    0,  0,  0,  0,'A',  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  // 5
+    0,'t',  0,'g',  0,  0,  0,'c',  0,  0,  0,  0,  0,  0,  0,  0,  // 6
+    0,  0,  0,  0,'a',  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0]; // 7
+
+/// Reverse complement a sequence; needed for liftover strand flips
+string reverse_complement(const(char)[] allele)
+{
+    assert(allele.length > 0);
+
+    // Special case "NA" which appears in MAF files
+    if (allele == "NA")
+        return "NA";
+
+    // Special case len 1
+    if (allele.length == 1) {
+        return [NT_COMP_TABLE[ allele[0] ]];
+    }
+    else {
+        char[] rcomp;
+        rcomp.length = allele.length;
+        auto len = allele.length;
+        foreach(i, base; allele.enumerate(1)) {
+            rcomp[len - i] = NT_COMP_TABLE[ base ];
+        }
+        return rcomp.idup;
+    }
+}
 
 // Columns index
 enum MAF
@@ -81,6 +120,9 @@ void liftMAF(
     string chainfile, string genomefile, string genomebuild,
     string infile, string outfile, string unmatched)
 {
+    hts_log_warning(__FUNCTION__, "Only fields build, chr, start, end, ref/tumor1/tumor2 are updated.");
+    hts_log_warning(__FUNCTION__, "A reference allele change might invalidate other fields.");
+
     auto fa = IndexedFastaFile(genomefile, true);
     fa.setCacheSize(1<<20); // including this improves runtime by 33%
     //fa.setThreads(1); // including this more than doubles runtime :-O
@@ -116,7 +158,7 @@ void liftMAF(
 
     auto fields = appender!(char[][]);
 
-    int nmatched, nunmatched, nmultiple, nrefchg;
+    int nmatched, nunmatched, nmultiple, nrefchg, nneither;
 
     hts_log_info(__FUNCTION__, "Reading MAF");
     // Consume header lines; write to output and unmatched
@@ -169,20 +211,85 @@ void liftMAF(
             fields.data[MAF.Start] = start.toChars.array;   // 67% time vs .text.dup;
             fields.data[MAF.End] = end.toChars.array;
 
-            // Check reference allele -- after having updated contig/start/end... :/
-            auto newRefAllele = fa.fetchSequence!(CoordSystem.obc)(fields.data[MAF.Contig].idup, start, end);
+            // If there was a strand flip, update tumor alleles
+            // (Previously, this was done only in case of a ref change, but in theory there could be
+            // a strand flip and NO reference change, not negating the need to rcomp other alleles)
+            // Note that because of the checks in the REF change block below, we have to do this first.
+            if (link.invert < 0)
+            {
+                fields.data[MAF.Tumor_Seq_Allele1] = reverse_complement(fields.data[MAF.Tumor_Seq_Allele1]).dup;
+                fields.data[MAF.Tumor_Seq_Allele2] = reverse_complement(fields.data[MAF.Tumor_Seq_Allele2]).dup;
+            }
+
+            /* Check Reference Allele
+
+                Obviously, this needs to be done after contig/start/end have
+                been lifted into destination coordinates.
+
+                In addition, MAF requires some special handling. In particular,
+                the REF field of records of type insertion is listed as `-`, rather
+                than the single nucleotide at the position, as in VCF. For type
+                deletion, it includes the deleted sequence.
+
+                Unfortunately in the case of an insertion, without an actual REF
+                allele (from source build) we cannot know if there has been a
+                reference allele change. The GDC MAF format does include a "context"
+                field, but this may not be present in all MAFs. Per the spec,
+                "Novel inserted sequence for insertion does not include flanking
+                reference bases."
+
+                In the case of deletion, the ref allele is given and `-` symbol
+                represents the variant. AFAICT, there is some inconsistency, at least
+                in the MSKCC cancerhotspots v2 MAF, whereby sometimes deletions'
+                tumor alleles are shown as (NA, -), but sometimes (-, NA), and
+                sometimes (REF, -) but othertimes not. Unclear.
+
+                Plan:
+                SNP/SNV: Check reference allele, track if changed; warn if the new
+                    ref allele matches NEITHER of the tumor detected alleles, which
+                    is certainly possible but may be notable (TODO: record or report
+                    these locations)
+
+                Insertion: Skip reference allele check
+                    NOTE: It is possible that a tumor "somatic" insertion is in fact
+                    the new reference; this could in theory be detected if the liftover
+                    coordinates were of different length (i.e. > 1) than the source coords.
+                    We can special case this later if necessary
+
+                Deletion: TODO until we can figure out whether our reference MAF
+                    is actually systematic (see above) or not, and what is the pattern
+                    with respect to how the tumor seq allele1/2 are represented
+            */
+            auto newRefAllele = (fields.data[MAF.Ref_Allele] == "-") ? "-" :
+                fa.fetchSequence!(CoordSystem.obc)(fields.data[MAF.Contig].idup, start, end);
             if (fields.data[MAF.Ref_Allele] != newRefAllele)
             {
                 nrefchg++;
 
-                // flag if the new reference matches the somatic call
-                if (newRefAllele == fields.data[MAF.Tumor_Seq_Allele1] ||
-                    newRefAllele == fields.data[MAF.Tumor_Seq_Allele2])
-                    hts_log_warning(__FUNCTION__, "New REF matches tumor allele");
+                // flag if the new reference matches NEITHER OF the somatic calls
+                // (unless it's a DEL which would show (NA, -)
+                // This typically occurs when tumor somatic calls match (homozygous/LOH)
+                // NOTE: Tumor alleles should have already been revcomp'd in case of strand flip
+                if (fields.data[MAF.Variant_Type] != "DEL" &&
+                    newRefAllele != fields.data[MAF.Tumor_Seq_Allele1] && 
+                    newRefAllele != fields.data[MAF.Tumor_Seq_Allele2]) {
+
+                    nneither++;
+                    debug hts_log_warning(__FUNCTION__,
+                        format("New REF matches NEITHER tumor allele: %s %d-%d %s -> %s (%s | %s)",
+                            fields.data[MAF.HUGO_Symbol],
+                            link.tStart,
+                            link.tEnd,
+                            fields.data[MAF.Ref_Allele],
+                            newRefAllele,
+                            fields.data[MAF.Tumor_Seq_Allele1],
+                            fields.data[MAF.Tumor_Seq_Allele2]));
+                }
 
                 // update REF allele
-                fields.data[MAF.Ref_Allele] = newRefAllele.dup; // newRefAllele is string
+                fields.data[MAF.Ref_Allele] = newRefAllele.dup;
             }
+
 
             // Finally, update the genome build name
             fields.data[MAF.NCBI_Build] = genomebuild.dup;
@@ -200,8 +307,10 @@ void liftMAF(
         }
     }
 
-    hts_log_info(__FUNCTION__, format("Matched %d records (%d multiply, skipped) and %d unmatched; %d REF allele changes",
-                                nmatched, nmultiple, nunmatched, nrefchg));
+    hts_log_info(__FUNCTION__, format("Matched %d records (%d multiply, skipped) and %d unmatched",
+                                nmatched, nmultiple, nunmatched));
+    hts_log_info(__FUNCTION__, format("%d REF allele changes (%d not matching either tumor allele)",
+                                nrefchg, nneither));
 
     if (nmatched == 0)
         hts_log_warning(__FUNCTION__,

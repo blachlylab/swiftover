@@ -1,5 +1,6 @@
 module swiftover.main;
 
+import std.algorithm.searching : endsWith;
 import std.file;
 import std.getopt;
 import std.path;
@@ -81,6 +82,13 @@ int main(string[] args)
 
     if (!chainfile.exists)
         throw new FileException("Chainfile does not exist");
+    try
+    if (chainfile.endsWith(".gz", ".bz2", ".Z", ".zip"))
+        throw new Error("Only uncompressed chainfiles are supported (for now)");
+    catch (Error e) {
+        stderr.writeln(e.msg);
+        return -1;
+    }
     if (infile != "-" && infile != "" && !infile.exists)
         throw new FileException("Input file does not exist");
     // test write 

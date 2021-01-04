@@ -13,6 +13,7 @@
 	"subConfigurations": {
 		"dhtslib": "source"
 	},
+	"lflags": ["-L/usr/local/lib"],
 	"configurations": [
 		{
 			"name": "splaytree",

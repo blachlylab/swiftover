@@ -7,7 +7,7 @@
 	"dependencies": {
         "dhtslib": 	"~>0.11.1",
         "dklib":	"~>0.1.1",
-        "intervaltree": "~>0.22.0"
+        "intervaltree": "~>0.22.1"
 	},
 	"buildRequirements": [ "allowWarnings" ],
 	"subConfigurations": {
@@ -43,6 +43,9 @@
         {
             "name": "instrument-iitree",
             "versions": [ "instrument", "iitree" ],
+            "subConfigurations": {
+                "intervaltree": "instrument-iitree"
+            },
             "targetType": "executable"
         },
         {

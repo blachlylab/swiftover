@@ -17,6 +17,14 @@ version(splay) enum treeTypeString = " (version: splay trees)";
 version(iitree) enum treeTypeString = " (version: cgranges/IITree)";
 //else enum treeTypeString = " (version: ???)";
 
+version(instrument)
+{
+    import std.datetime : Duration;
+    import std.datetime.stopwatch;
+    __gshared Duration buildTime;
+    __gshared Duration liftTime;
+}
+
 int main(string[] args)
 {
     string fileType;
@@ -177,6 +185,8 @@ int main(string[] args)
         }
         hts_log_info(__FUNCTION__, format("Tree statistics: N=%d (%d -- %d) mu=%f median %f", n, mind, maxd, meand, mediand) );
 
+        hts_log_info(__FUNCTION__, format("Tree build time (msec): %d", buildTime.total!"msecs"));
+        hts_log_info(__FUNCTION__, format("Tree lift  time (msec): %d", liftTime.total!"msecs"));
     }
 
     return 0;

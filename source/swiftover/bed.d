@@ -13,6 +13,12 @@ import swiftover.chain;
 
 import htslib.hts_log;
 
+version(instrument)
+{
+    import std.datetime.stopwatch;
+    import swiftover.main : buildTime, liftTime;
+}
+
 /**
     Lookup table for strand (+, -) inversion
 
@@ -65,10 +71,16 @@ static char[256] STRAND_TABLE = [
 */
 void liftBED(string chainfile, string infile, string outfile, string unmatched)
 {
-    hts_set_log_level(htsLogLevel.HTS_LOG_INFO);
     hts_log_info(__FUNCTION__, "Reading chainfile");
+    version(instrument) auto stopWatch = StopWatch(AutoStart.yes);
     auto cf = ChainFile(chainfile);
-    
+    version(instrument)
+    {
+        buildTime = stopWatch.peek();
+        stopWatch.reset();
+        stopWatch.start();
+    } 
+
     // Fee, Fi, Fo, Fum!
     File fi;
     File fo;
@@ -97,6 +109,7 @@ void liftBED(string chainfile, string infile, string outfile, string unmatched)
     auto fields = appender!(char[][]);
 
     hts_log_info(__FUNCTION__, "Reading BED");
+    version(instrument) stopWatch.start();
     foreach(line; fi.byLine())
     {
         if (line.length > 0 && line[0] == '#') continue;
@@ -187,4 +200,5 @@ void liftBED(string chainfile, string infile, string outfile, string unmatched)
             }
         }
     }
+    version(instrument) liftTime = stopWatch.peek();
 }

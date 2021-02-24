@@ -12,10 +12,10 @@ import swiftover.vcf;
 
 import htslib.hts_log;
 
-version(avl) enum treeTypeString = " (version: AVL trees)";
-version(splay) enum treeTypeString = " (version: splay trees)";
-version(iitree) enum treeTypeString = " (version: cgranges/IITree)";
-//else enum treeTypeString = " (version: ???)";
+version(avl) enum treeTypeString = "AVL tree";
+version(splay) enum treeTypeString = "splay tree";
+version(iitree) enum treeTypeString = "cgranges/IITree";
+//else enum treeTypeString = "(version: ???)";
 
 version(instrument)
 {
@@ -71,7 +71,7 @@ int main(string[] args)
             "o|outfile", "Output file; - or omit for stdout", &outfile,
             "u|unmatched", "Unmatched output file", &unmatched,
         );
-        defaultGetoptPrinter("🚀 swift liftover" ~ treeTypeString,
+        defaultGetoptPrinter("🚀 swift liftover (version: " ~ treeTypeString ~ ")",
             usage.options);
 
         return 1;
@@ -79,7 +79,7 @@ int main(string[] args)
 
     if (usage.helpWanted)
     {
-        defaultGetoptPrinter("🚀 swift liftover" ~ treeTypeString,
+        defaultGetoptPrinter("🚀 swift liftover (version: " ~ treeTypeString ~ ")",
             usage.options);
         return 1;
     }
@@ -114,7 +114,7 @@ int main(string[] args)
     if (unmatched == "")
         throw new Exception("<unmatched> output file required");
     
-    hts_log_info(__FUNCTION__, "🚀 swift liftover" ~ treeTypeString);
+    hts_log_info(__FUNCTION__, "🚀 swift liftover (version: " ~ treeTypeString ~ ")");
     switch(fileType)
     {
         case "bed":
@@ -187,6 +187,8 @@ int main(string[] args)
 
         hts_log_info(__FUNCTION__, format("Tree build time (msec): %d", buildTime.total!"msecs"));
         hts_log_info(__FUNCTION__, format("Tree lift  time (msec): %d", liftTime.total!"msecs"));
+
+        stderr.writefln("%s,%d,%d,%d,%f,%f,%d,%d", treeTypeString, n, mind, maxd, meand, mediand, buildTime.total!"msecs", liftTime.total!"msecs");
     }
 
     return 0;
